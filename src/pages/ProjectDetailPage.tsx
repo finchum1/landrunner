@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { deleteProject, updateProject, type ProjectInput } from '../lib/projects';
@@ -12,6 +12,63 @@ import ImportOwnersModal from '../components/ImportOwnersModal';
 import OwnerDrawer from '../components/OwnerDrawer';
 import StatusSelect from '../components/StatusSelect';
 
+type SortKey = 'name' | 'nma' | 'interest_decimal' | 'phone' | 'email' | 'status' | 'last_contacted_at';
+type SortDir = 'asc' | 'desc';
+
+// Sort a value to the end regardless of direction (nulls/blanks always last).
+function isBlank(v: unknown): boolean {
+  return v === null || v === undefined || v === '';
+}
+
+function compareOwners(a: MineralOwner, b: MineralOwner, key: SortKey, dir: SortDir): number {
+  const aVal = key === 'status' ? STATUS_ORDER.indexOf(a.status) : a[key];
+  const bVal = key === 'status' ? STATUS_ORDER.indexOf(b.status) : b[key];
+
+  const aBlank = key !== 'status' && isBlank(aVal);
+  const bBlank = key !== 'status' && isBlank(bVal);
+  if (aBlank && bBlank) return 0;
+  if (aBlank) return 1;
+  if (bBlank) return -1;
+
+  let cmp: number;
+  if (typeof aVal === 'number' && typeof bVal === 'number') {
+    cmp = aVal - bVal;
+  } else {
+    cmp = String(aVal).localeCompare(String(bVal));
+  }
+  return dir === 'asc' ? cmp : -cmp;
+}
+
+function SortableHeader({
+  sortKeyValue,
+  activeKey,
+  dir,
+  onToggle,
+  children,
+}: {
+  sortKeyValue: SortKey;
+  activeKey: SortKey;
+  dir: SortDir;
+  onToggle: (key: SortKey) => void;
+  children: ReactNode;
+}) {
+  const active = activeKey === sortKeyValue;
+  return (
+    <th className="px-4 py-2">
+      <button
+        type="button"
+        onClick={() => onToggle(sortKeyValue)}
+        className={`flex items-center gap-1 hover:text-stone-700 dark:hover:text-stone-200 ${
+          active ? 'text-stone-700 dark:text-stone-200' : ''
+        }`}
+      >
+        {children}
+        <span className="text-[10px] leading-none">{active ? (dir === 'asc' ? '▲' : '▼') : ''}</span>
+      </button>
+    </th>
+  );
+}
+
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -23,6 +80,8 @@ export default function ProjectDetailPage() {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<OwnerStatus | 'all'>('all');
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   const [showEdit, setShowEdit] = useState(false);
   const [showAddOwner, setShowAddOwner] = useState(false);
@@ -68,12 +127,23 @@ export default function ProjectDetailPage() {
   }, [owners, project]);
 
   const filteredOwners = useMemo(() => {
-    return owners.filter((o) => {
-      if (statusFilter !== 'all' && o.status !== statusFilter) return false;
-      if (search.trim() && !o.name.toLowerCase().includes(search.trim().toLowerCase())) return false;
-      return true;
-    });
-  }, [owners, search, statusFilter]);
+    return owners
+      .filter((o) => {
+        if (statusFilter !== 'all' && o.status !== statusFilter) return false;
+        if (search.trim() && !o.name.toLowerCase().includes(search.trim().toLowerCase())) return false;
+        return true;
+      })
+      .sort((a, b) => compareOwners(a, b, sortKey, sortDir));
+  }, [owners, search, statusFilter, sortKey, sortDir]);
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  }
 
   async function handleEditSubmit(input: ProjectInput) {
     if (!project) return;
@@ -240,13 +310,27 @@ export default function ProjectDetailPage() {
         <table className="w-full text-left text-sm">
           <thead className="bg-stone-50 text-xs uppercase text-stone-500 dark:bg-stone-800 dark:text-stone-400">
             <tr>
-              <th className="px-4 py-2">Name</th>
-              <th className="px-4 py-2">NMA</th>
-              <th className="px-4 py-2">Interest</th>
-              <th className="px-4 py-2">Phone</th>
-              <th className="px-4 py-2">Email</th>
-              <th className="px-4 py-2">Status</th>
-              <th className="px-4 py-2">Last Contacted</th>
+              <SortableHeader sortKeyValue="name" activeKey={sortKey} dir={sortDir} onToggle={toggleSort}>
+                Name
+              </SortableHeader>
+              <SortableHeader sortKeyValue="nma" activeKey={sortKey} dir={sortDir} onToggle={toggleSort}>
+                NMA
+              </SortableHeader>
+              <SortableHeader sortKeyValue="interest_decimal" activeKey={sortKey} dir={sortDir} onToggle={toggleSort}>
+                Interest
+              </SortableHeader>
+              <SortableHeader sortKeyValue="phone" activeKey={sortKey} dir={sortDir} onToggle={toggleSort}>
+                Phone
+              </SortableHeader>
+              <SortableHeader sortKeyValue="email" activeKey={sortKey} dir={sortDir} onToggle={toggleSort}>
+                Email
+              </SortableHeader>
+              <SortableHeader sortKeyValue="status" activeKey={sortKey} dir={sortDir} onToggle={toggleSort}>
+                Status
+              </SortableHeader>
+              <SortableHeader sortKeyValue="last_contacted_at" activeKey={sortKey} dir={sortDir} onToggle={toggleSort}>
+                Last Contacted
+              </SortableHeader>
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-100 bg-white dark:divide-stone-800 dark:bg-stone-900">
