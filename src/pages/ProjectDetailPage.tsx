@@ -2,10 +2,18 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { deleteProject, updateProject, type ProjectInput } from '../lib/projects';
-import { fetchOwners, updateOwner } from '../lib/owners';
+import { fetchLatestActivityByProject, fetchOwners, updateOwner, type LatestActivity } from '../lib/owners';
 import type { MineralOwner, OwnerStatus, Project } from '../lib/types';
 import { STATUS_LABELS, STATUS_ORDER } from '../lib/types';
-import { formatAcres, formatDate, formatInterest, formatLeaseTerm, formatMoney, legalDescription } from '../lib/format';
+import {
+  formatAcres,
+  formatDate,
+  formatInterest,
+  formatLeaseTerm,
+  formatMoney,
+  legalDescription,
+  truncate,
+} from '../lib/format';
 import ProjectFormModal from '../components/ProjectFormModal';
 import AddOwnerModal from '../components/AddOwnerModal';
 import ImportOwnersModal from '../components/ImportOwnersModal';
@@ -75,6 +83,7 @@ export default function ProjectDetailPage() {
 
   const [project, setProject] = useState<Project | null>(null);
   const [owners, setOwners] = useState<MineralOwner[]>([]);
+  const [latestNotes, setLatestNotes] = useState<Record<string, LatestActivity>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -92,13 +101,15 @@ export default function ProjectDetailPage() {
     if (!id) return;
     setError(null);
     try {
-      const [{ data: projectRow, error: projectError }, ownerRows] = await Promise.all([
+      const [{ data: projectRow, error: projectError }, ownerRows, latestActivityRows] = await Promise.all([
         supabase.from('projects').select('*').eq('id', id).single(),
         fetchOwners(id),
+        fetchLatestActivityByProject(id),
       ]);
       if (projectError) throw projectError;
       setProject(projectRow);
       setOwners(ownerRows);
+      setLatestNotes(Object.fromEntries(latestActivityRows.map((a) => [a.owner_id, a])));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load this project.');
     } finally {
@@ -331,6 +342,7 @@ export default function ProjectDetailPage() {
               <SortableHeader sortKeyValue="last_contacted_at" activeKey={sortKey} dir={sortDir} onToggle={toggleSort}>
                 Last Contacted
               </SortableHeader>
+              <th className="px-4 py-2">Recent Log</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-100 bg-white dark:divide-stone-800 dark:bg-stone-900">
@@ -353,6 +365,16 @@ export default function ProjectDetailPage() {
                   <StatusSelect value={o.status} onChange={(next) => handleOwnerStatusChange(o, next)} />
                 </td>
                 <td className="px-4 py-2 text-stone-500 dark:text-stone-400">{formatDate(o.last_contacted_at)}</td>
+                <td className="max-w-xs px-4 py-2 text-stone-500 dark:text-stone-400">
+                  {latestNotes[o.id] ? (
+                    <span title={latestNotes[o.id].note}>
+                      {truncate(latestNotes[o.id].note, 40)}
+                      <span className="ml-1 text-xs text-stone-400">{formatDate(latestNotes[o.id].created_at)}</span>
+                    </span>
+                  ) : (
+                    <span className="text-stone-400">—</span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -394,6 +416,9 @@ export default function ProjectDetailPage() {
           onDeleted={(id) => {
             setOwners((prev) => prev.filter((o) => o.id !== id));
             setSelectedOwner(null);
+          }}
+          onActivityAdded={(ownerId, entry) => {
+            setLatestNotes((prev) => ({ ...prev, [ownerId]: { owner_id: ownerId, note: entry.note, created_at: entry.created_at } }));
           }}
         />
       )}

@@ -10,11 +10,13 @@ export default function OwnerDrawer({
   onClose,
   onChanged,
   onDeleted,
+  onActivityAdded,
 }: {
   owner: MineralOwner;
   onClose: () => void;
   onChanged: (updated: MineralOwner) => void;
   onDeleted: (id: string) => void;
+  onActivityAdded?: (ownerId: string, entry: OwnerActivity) => void;
 }) {
   const [nma, setNma] = useState(String(owner.nma ?? ''));
   const [interestPercent, setInterestPercent] = useState(
@@ -94,6 +96,7 @@ export default function OwnerDrawer({
       const entry = await addActivity(owner.id, newNote.trim());
       setActivity((prev) => [entry, ...prev]);
       setNewNote('');
+      onActivityAdded?.(owner.id, entry);
       const updated = await updateOwner(owner.id, { last_contacted_at: new Date().toISOString() });
       onChanged(updated);
     } catch (err) {

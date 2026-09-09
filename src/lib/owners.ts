@@ -80,3 +80,21 @@ export async function addActivity(ownerId: string, note: string): Promise<OwnerA
   if (error) throw error;
   return data;
 }
+
+export interface LatestActivity {
+  owner_id: string;
+  note: string;
+  created_at: string;
+}
+
+// One row per owner: their most recent call-log entry, for a whole project
+// in a single query (backed by the latest_owner_activity view) rather than
+// fetching every owner's activity individually.
+export async function fetchLatestActivityByProject(projectId: string): Promise<LatestActivity[]> {
+  const { data, error } = await supabase
+    .from('latest_owner_activity')
+    .select('owner_id, note, created_at')
+    .eq('project_id', projectId);
+  if (error) throw error;
+  return data ?? [];
+}
