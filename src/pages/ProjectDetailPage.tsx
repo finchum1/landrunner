@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { deleteProject, updateProject, type ProjectInput } from '../lib/projects';
 import { fetchLatestActivityByProject, fetchOwners, updateOwner, type LatestActivity } from '../lib/owners';
 import type { MineralOwner, OwnerStatus, Project } from '../lib/types';
-import { STATUS_LABELS, STATUS_ORDER } from '../lib/types';
+import { CONTACT_STATUSES, STATUS_LABELS, STATUS_ORDER } from '../lib/types';
 import {
   formatAcres,
   formatDate,
@@ -178,9 +178,9 @@ export default function ProjectDetailPage() {
     setOwners((prev) => prev.map((o) => (o.id === owner.id ? { ...o, status: next } : o)));
     try {
       const wasUncontacted = STATUS_ORDER.indexOf(owner.status) === 0;
-      const isMovingForward = STATUS_ORDER.indexOf(next) > 0;
+      const movesToContactStatus = CONTACT_STATUSES.includes(next);
       const patch: { status: OwnerStatus; last_contacted_at?: string } = { status: next };
-      if (wasUncontacted && isMovingForward) patch.last_contacted_at = new Date().toISOString();
+      if (wasUncontacted && movesToContactStatus) patch.last_contacted_at = new Date().toISOString();
       const updated = await updateOwner(owner.id, patch);
       setOwners((prev) => prev.map((o) => (o.id === owner.id ? updated : o)));
     } catch {

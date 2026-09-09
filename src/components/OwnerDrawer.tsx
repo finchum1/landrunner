@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { MineralOwner, OwnerActivity, OwnerStatus } from '../lib/types';
-import { STATUS_ORDER } from '../lib/types';
+import { CONTACT_STATUSES, STATUS_ORDER } from '../lib/types';
 import { addActivity, deleteOwner, fetchActivity, updateOwner } from '../lib/owners';
 import { formatDateTime, formatInterest } from '../lib/format';
 import StatusSelect from './StatusSelect';
@@ -55,9 +55,9 @@ export default function OwnerDrawer({
     setError(null);
     try {
       const wasUncontacted = STATUS_ORDER.indexOf(owner.status) === 0;
-      const isMovingForward = STATUS_ORDER.indexOf(next) > 0;
+      const movesToContactStatus = CONTACT_STATUSES.includes(next);
       const patch: Parameters<typeof updateOwner>[1] = { status: next };
-      if (wasUncontacted && isMovingForward) {
+      if (wasUncontacted && movesToContactStatus) {
         patch.last_contacted_at = new Date().toISOString();
       }
       const updated = await updateOwner(owner.id, patch);

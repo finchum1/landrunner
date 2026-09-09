@@ -6,7 +6,8 @@ export type OwnerStatus =
   | 'negotiating'
   | 'leased'
   | 'declined'
-  | 'unresponsive';
+  | 'unresponsive'
+  | 'client';
 
 export const STATUS_ORDER: OwnerStatus[] = [
   'not_contacted',
@@ -17,6 +18,7 @@ export const STATUS_ORDER: OwnerStatus[] = [
   'leased',
   'declined',
   'unresponsive',
+  'client',
 ];
 
 export const STATUS_LABELS: Record<OwnerStatus, string> = {
@@ -28,6 +30,7 @@ export const STATUS_LABELS: Record<OwnerStatus, string> = {
   leased: 'Leased',
   declined: 'Declined',
   unresponsive: 'Unresponsive',
+  client: 'Client',
 };
 
 // Tailwind classes for a small status pill, light+dark aware.
@@ -40,7 +43,22 @@ export const STATUS_COLORS: Record<OwnerStatus, string> = {
   leased: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
   declined: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
   unresponsive: 'bg-stone-200 text-stone-500 dark:bg-stone-800 dark:text-stone-400',
+  client: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
 };
+
+// Statuses that represent the landman actually reaching the owner directly
+// (used to decide whether changing status should auto-stamp last_contacted_at).
+// "client" means the client's own team is handling that owner, not a contact
+// event by the landman, so it's deliberately excluded.
+export const CONTACT_STATUSES: OwnerStatus[] = [
+  'attempted',
+  'contacted',
+  'offer_made',
+  'negotiating',
+  'leased',
+  'declined',
+  'unresponsive',
+];
 
 export interface Project {
   id: string;
