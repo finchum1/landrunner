@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { MineralOwner, OwnerActivity, OwnerStatus } from '../lib/types';
 import { STATUS_ORDER } from '../lib/types';
 import { addActivity, deleteOwner, fetchActivity, updateOwner } from '../lib/owners';
-import { formatAcres, formatDateTime } from '../lib/format';
+import { formatDateTime, formatInterest } from '../lib/format';
 import StatusSelect from './StatusSelect';
 
 export default function OwnerDrawer({
@@ -16,6 +16,10 @@ export default function OwnerDrawer({
   onChanged: (updated: MineralOwner) => void;
   onDeleted: (id: string) => void;
 }) {
+  const [nma, setNma] = useState(String(owner.nma ?? ''));
+  const [interestPercent, setInterestPercent] = useState(
+    owner.interest_decimal != null ? String(owner.interest_decimal * 100) : ''
+  );
   const [phone, setPhone] = useState(owner.phone ?? '');
   const [email, setEmail] = useState(owner.email ?? '');
   const [address, setAddress] = useState(owner.address ?? '');
@@ -67,6 +71,8 @@ export default function OwnerDrawer({
     setError(null);
     try {
       const updated = await updateOwner(owner.id, {
+        nma: nma ? parseFloat(nma) : 0,
+        interest_decimal: interestPercent ? parseFloat(interestPercent) / 100 : null,
         phone: phone.trim() || null,
         email: email.trim() || null,
         address: address.trim() || null,
@@ -113,7 +119,7 @@ export default function OwnerDrawer({
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">{owner.name}</h2>
-            <p className="text-sm text-stone-500 dark:text-stone-400">{formatAcres(owner.nma)} NMA</p>
+            <p className="text-sm text-stone-500 dark:text-stone-400">{formatInterest(owner.interest_decimal)} interest</p>
           </div>
           <button
             onClick={onClose}
@@ -132,6 +138,30 @@ export default function OwnerDrawer({
         </div>
 
         <div className="mb-5 grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">NMA</label>
+              <input
+                type="number"
+                step="0.01"
+                value={nma}
+                onChange={(e) => setNma(e.target.value)}
+                className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
+                Interest (%)
+              </label>
+              <input
+                type="number"
+                step="0.0001"
+                value={interestPercent}
+                onChange={(e) => setInterestPercent(e.target.value)}
+                className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+              />
+            </div>
+          </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Phone</label>
             <input

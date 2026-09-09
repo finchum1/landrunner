@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { createProject, fetchProjects, type ProjectInput } from '../lib/projects';
 import { fetchAllOwnersLite } from '../lib/owners';
 import type { Project } from '../lib/types';
-import { formatAcres, formatLeaseTerm, formatMoney } from '../lib/format';
+import { formatAcres, formatLeaseTerm, formatMoney, legalDescription } from '../lib/format';
 import ProjectFormModal from '../components/ProjectFormModal';
 
 interface ProjectStats {
@@ -101,7 +101,9 @@ export default function ProjectsPage() {
                   </span>
                 )}
               </div>
-              {p.target_area && <p className="mb-3 text-sm text-stone-500 dark:text-stone-400">{p.target_area}</p>}
+              {legalDescription(p) && (
+                <p className="mb-3 text-sm text-stone-500 dark:text-stone-400">{legalDescription(p)}</p>
+              )}
 
               <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-stone-600 dark:text-stone-300">
                 {p.offer_rate_per_acre != null && <span>{formatMoney(p.offer_rate_per_acre)}/acre</span>}

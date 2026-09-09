@@ -14,6 +14,10 @@ export default function ProjectFormModal({
   const [name, setName] = useState(project?.name ?? '');
   const [prospectNumber, setProspectNumber] = useState(project?.prospect_number ?? '');
   const [targetArea, setTargetArea] = useState(project?.target_area ?? '');
+  const [section, setSection] = useState(project?.section ?? '');
+  const [township, setTownship] = useState(project?.township ?? '');
+  const [range, setRange] = useState(project?.range ?? '');
+  const [county, setCounty] = useState(project?.county ?? '');
   const [rate, setRate] = useState(project?.offer_rate_per_acre?.toString() ?? '');
   const [royaltyChoice, setRoyaltyChoice] = useState(
     project?.offer_royalty_label && ROYALTY_PRESETS.some((r) => r.label === project.offer_royalty_label)
@@ -49,6 +53,10 @@ export default function ProjectFormModal({
         name: name.trim(),
         prospect_number: prospectNumber.trim() || null,
         target_area: targetArea.trim() || null,
+        section: section.trim() || null,
+        township: township.trim() || null,
+        range: range.trim() || null,
+        county: county.trim() || null,
         offer_rate_per_acre: rate ? parseFloat(rate) : null,
         offer_royalty_label: royaltyLabel || null,
         offer_royalty_fraction: preset ? preset.fraction : null,
@@ -95,12 +103,60 @@ export default function ProjectFormModal({
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
-                Target area
+                Aliquot (optional)
               </label>
               <input
                 value={targetArea}
                 onChange={(e) => setTargetArea(e.target.value)}
                 placeholder="SE/4"
+                className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+              />
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-stone-200 p-3 dark:border-stone-800">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+              Legal description
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
+                  Section
+                </label>
+                <input
+                  value={section}
+                  onChange={(e) => setSection(e.target.value)}
+                  placeholder="32"
+                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
+                  Township
+                </label>
+                <input
+                  value={township}
+                  onChange={(e) => setTownship(e.target.value)}
+                  placeholder="25N"
+                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Range</label>
+                <input
+                  value={range}
+                  onChange={(e) => setRange(e.target.value)}
+                  placeholder="1W"
+                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                />
+              </div>
+            </div>
+            <div className="mt-3">
+              <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">County</label>
+              <input
+                value={county}
+                onChange={(e) => setCounty(e.target.value)}
+                placeholder="Kay"
                 className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
               />
             </div>

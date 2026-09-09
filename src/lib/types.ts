@@ -47,6 +47,10 @@ export interface Project {
   name: string;
   prospect_number: string | null;
   target_area: string | null;
+  section: string | null;
+  township: string | null;
+  range: string | null;
+  county: string | null;
   offer_rate_per_acre: number | null;
   offer_royalty_label: string | null;
   offer_royalty_fraction: number | null;
@@ -62,6 +66,7 @@ export interface MineralOwner {
   project_id: string;
   name: string;
   nma: number;
+  interest_decimal: number | null;
   phone: string | null;
   email: string | null;
   address: string | null;

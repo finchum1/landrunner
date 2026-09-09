@@ -5,6 +5,10 @@ export interface ProjectInput {
   name: string;
   prospect_number: string | null;
   target_area: string | null;
+  section: string | null;
+  township: string | null;
+  range: string | null;
+  county: string | null;
   offer_rate_per_acre: number | null;
   offer_royalty_label: string | null;
   offer_royalty_fraction: number | null;

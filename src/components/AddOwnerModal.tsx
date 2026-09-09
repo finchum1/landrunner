@@ -13,9 +13,11 @@ export default function AddOwnerModal({
 }) {
   const [name, setName] = useState('');
   const [nma, setNma] = useState('');
+  const [interestPercent, setInterestPercent] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
+  const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -31,9 +33,11 @@ export default function AddOwnerModal({
       const input: OwnerInput = {
         name: name.trim(),
         nma: nma ? parseFloat(nma) : 0,
+        interest_decimal: interestPercent ? parseFloat(interestPercent) / 100 : null,
         phone: phone.trim() || null,
         email: email.trim() || null,
         address: address.trim() || null,
+        notes: notes.trim() || null,
       };
       const owner = await createOwner(projectId, input);
       onCreated(owner);
@@ -68,6 +72,19 @@ export default function AddOwnerModal({
             />
           </div>
           <div>
+            <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
+              Interest (%)
+            </label>
+            <input
+              type="number"
+              step="0.0001"
+              value={interestPercent}
+              onChange={(e) => setInterestPercent(e.target.value)}
+              placeholder="e.g. 52.88"
+              className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+            />
+          </div>
+          <div>
             <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Phone</label>
             <input
               value={phone}
@@ -88,6 +105,15 @@ export default function AddOwnerModal({
             <input
               value={address}
               onChange={(e) => setAddress(e.target.value)}
+              className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Notes</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
               className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
             />
           </div>

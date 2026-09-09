@@ -5,7 +5,7 @@ import { deleteProject, updateProject, type ProjectInput } from '../lib/projects
 import { fetchOwners, updateOwner } from '../lib/owners';
 import type { MineralOwner, OwnerStatus, Project } from '../lib/types';
 import { STATUS_LABELS, STATUS_ORDER } from '../lib/types';
-import { formatAcres, formatDate, formatLeaseTerm, formatMoney } from '../lib/format';
+import { formatAcres, formatDate, formatInterest, formatLeaseTerm, formatMoney, legalDescription } from '../lib/format';
 import ProjectFormModal from '../components/ProjectFormModal';
 import AddOwnerModal from '../components/AddOwnerModal';
 import ImportOwnersModal from '../components/ImportOwnersModal';
@@ -139,7 +139,9 @@ export default function ProjectDetailPage() {
               </span>
             )}
           </div>
-          {project.target_area && <p className="text-sm text-stone-500 dark:text-stone-400">{project.target_area}</p>}
+          {legalDescription(project) && (
+            <p className="text-sm text-stone-500 dark:text-stone-400">{legalDescription(project)}</p>
+          )}
         </div>
         <div className="flex gap-2">
           <button
@@ -240,6 +242,7 @@ export default function ProjectDetailPage() {
             <tr>
               <th className="px-4 py-2">Name</th>
               <th className="px-4 py-2">NMA</th>
+              <th className="px-4 py-2">Interest</th>
               <th className="px-4 py-2">Phone</th>
               <th className="px-4 py-2">Email</th>
               <th className="px-4 py-2">Status</th>
@@ -255,6 +258,7 @@ export default function ProjectDetailPage() {
               >
                 <td className="px-4 py-2 font-medium text-stone-900 dark:text-stone-100">{o.name}</td>
                 <td className="px-4 py-2">{formatAcres(o.nma)}</td>
+                <td className="px-4 py-2">{formatInterest(o.interest_decimal)}</td>
                 <td className="px-4 py-2">
                   {o.phone || <span className="text-stone-400">—</span>}
                 </td>

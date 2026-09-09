@@ -22,9 +22,11 @@ export async function fetchAllOwnersLite(): Promise<
 export interface OwnerInput {
   name: string;
   nma: number;
+  interest_decimal: number | null;
   phone: string | null;
   email: string | null;
   address: string | null;
+  notes?: string | null;
 }
 
 export async function createOwner(projectId: string, input: OwnerInput): Promise<MineralOwner> {
