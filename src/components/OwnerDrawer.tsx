@@ -31,6 +31,7 @@ export default function OwnerDrawer({
   const [phone, setPhone] = useState(owner.phone ?? '');
   const [email, setEmail] = useState(owner.email ?? '');
   const [address, setAddress] = useState(owner.address ?? '');
+  const [nextContactDate, setNextContactDate] = useState(owner.next_contact_date ?? '');
   const [notes, setNotes] = useState(owner.notes ?? '');
   const [status, setStatus] = useState<OwnerStatus>(owner.status);
   const [saving, setSaving] = useState(false);
@@ -101,6 +102,7 @@ export default function OwnerDrawer({
         phone: phone.trim() || null,
         email: email.trim() || null,
         address: address.trim() || null,
+        next_contact_date: nextContactDate || null,
         notes: notes.trim() || null,
       });
       onChanged(updated);
@@ -241,6 +243,17 @@ export default function OwnerDrawer({
                 <input
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
+                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
+                  Next Contact
+                </label>
+                <input
+                  type="date"
+                  value={nextContactDate}
+                  onChange={(e) => setNextContactDate(e.target.value)}
                   className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
                 />
               </div>

@@ -61,3 +61,22 @@ export function formatDateTime(iso: string | null | undefined): string {
     minute: '2-digit',
   });
 }
+
+// For a pure date column (e.g. "2026-09-15", no time component) -- NOT for
+// formatDate/formatDateTime's timestamptz values. Passing a bare "YYYY-MM-DD"
+// straight to `new Date()` parses it as UTC midnight, which can display as
+// the *previous* day once toLocaleDateString renders it in a timezone behind
+// UTC (most of the US). Parsing the y/m/d components into a local Date
+// avoids that off-by-one.
+export function formatDateOnly(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+// "YYYY-MM-DD" for today in the local timezone (not toISOString, which is
+// UTC and has the same off-by-one risk described above).
+export function todayDateString(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}

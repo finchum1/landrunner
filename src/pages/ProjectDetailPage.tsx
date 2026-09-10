@@ -11,14 +11,16 @@ import {
   type OfferTermsInput,
 } from '../lib/offerTerms';
 import type { MineralOwner, OwnerStatus, Project, ProjectOfferTerms } from '../lib/types';
-import { CONTACT_STATUSES, STATUS_LABELS, STATUS_ORDER } from '../lib/types';
+import { CONTACT_STATUSES, STATUS_COLORS, STATUS_LABELS, STATUS_ORDER } from '../lib/types';
 import {
   formatAcres,
   formatDate,
+  formatDateOnly,
   formatInterest,
   formatLeaseTerm,
   formatMoney,
   legalDescription,
+  todayDateString,
   truncate,
 } from '../lib/format';
 import ProjectFormModal from '../components/ProjectFormModal';
@@ -28,8 +30,25 @@ import ImportOwnersModal from '../components/ImportOwnersModal';
 import OwnerDrawer from '../components/OwnerDrawer';
 import StatusSelect from '../components/StatusSelect';
 
-type SortKey = 'name' | 'nma' | 'interest_decimal' | 'phone' | 'email' | 'status' | 'last_contacted_at';
+type SortKey =
+  | 'name'
+  | 'nma'
+  | 'interest_decimal'
+  | 'phone'
+  | 'email'
+  | 'status'
+  | 'last_contacted_at'
+  | 'next_contact_date';
 type SortDir = 'asc' | 'desc';
+
+// "YYYY-MM-DD" string compares chronologically with plain <, so this needs
+// no date parsing -- but keep it a named helper for the two call sites.
+function nextContactUrgency(dateStr: string | null, today: string): 'overdue' | 'today' | 'future' | null {
+  if (!dateStr) return null;
+  if (dateStr < today) return 'overdue';
+  if (dateStr === today) return 'today';
+  return 'future';
+}
 
 // Sort a value to the end regardless of direction (nulls/blanks always last).
 function isBlank(v: unknown): boolean {
@@ -98,6 +117,7 @@ export default function ProjectDetailPage() {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<OwnerStatus | 'all'>('all');
+  const [showFollowUpsOnly, setShowFollowUpsOnly] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('nma');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -148,15 +168,41 @@ export default function ProjectDetailPage() {
     };
   }, [owners]);
 
+  const statusCounts = useMemo(() => {
+    const counts = Object.fromEntries(STATUS_ORDER.map((s) => [s, 0])) as Record<OwnerStatus, number>;
+    for (const o of owners) counts[o.status] += 1;
+    return counts;
+  }, [owners]);
+
+  const dueFollowUpCount = useMemo(() => {
+    const today = todayDateString();
+    return owners.filter((o) => o.next_contact_date && o.next_contact_date <= today).length;
+  }, [owners]);
+
   const filteredOwners = useMemo(() => {
+    const today = todayDateString();
     return owners
       .filter((o) => {
         if (statusFilter !== 'all' && o.status !== statusFilter) return false;
         if (search.trim() && !o.name.toLowerCase().includes(search.trim().toLowerCase())) return false;
+        if (showFollowUpsOnly && !(o.next_contact_date && o.next_contact_date <= today)) return false;
         return true;
       })
       .sort((a, b) => compareOwners(a, b, sortKey, sortDir));
-  }, [owners, search, statusFilter, sortKey, sortDir]);
+  }, [owners, search, statusFilter, showFollowUpsOnly, sortKey, sortDir]);
+
+  function toggleFollowUpsOnly() {
+    setShowFollowUpsOnly((prev) => {
+      const next = !prev;
+      if (next) {
+        // Most overdue first is the natural default once you're looking at
+        // exactly "who needs a call" -- still fully re-sortable afterward.
+        setSortKey('next_contact_date');
+        setSortDir('asc');
+      }
+      return next;
+    });
+  }
 
   const selectedOwnerIndex = selectedOwner ? filteredOwners.findIndex((o) => o.id === selectedOwner.id) : -1;
 
@@ -348,6 +394,19 @@ export default function ProjectDetailPage() {
         ))}
       </div>
 
+      <div className="mb-6">
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+          Owners by Status
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          {STATUS_ORDER.map((s) => (
+            <span key={s} className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_COLORS[s]}`}>
+              {STATUS_LABELS[s]}: {statusCounts[s]}
+            </span>
+          ))}
+        </div>
+      </div>
+
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <input
@@ -368,6 +427,17 @@ export default function ProjectDetailPage() {
               </option>
             ))}
           </select>
+          <button
+            onClick={toggleFollowUpsOnly}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+              showFollowUpsOnly
+                ? 'bg-amber-600 text-white hover:bg-amber-700'
+                : 'border border-stone-300 text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800'
+            }`}
+            title="Owners with a next-contact date that's today or overdue"
+          >
+            Follow-ups{dueFollowUpCount > 0 ? ` (${dueFollowUpCount})` : ''}
+          </button>
         </div>
         <div className="flex gap-2">
           <button
@@ -416,6 +486,9 @@ export default function ProjectDetailPage() {
               <SortableHeader sortKeyValue="last_contacted_at" activeKey={sortKey} dir={sortDir} onToggle={toggleSort}>
                 Last Contacted
               </SortableHeader>
+              <SortableHeader sortKeyValue="next_contact_date" activeKey={sortKey} dir={sortDir} onToggle={toggleSort}>
+                Next Contact
+              </SortableHeader>
               <th className="px-4 py-2">Recent Log</th>
             </tr>
           </thead>
@@ -439,6 +512,18 @@ export default function ProjectDetailPage() {
                   <StatusSelect value={o.status} onChange={(next) => handleOwnerStatusChange(o, next)} />
                 </td>
                 <td className="px-4 py-2 text-stone-500 dark:text-stone-400">{formatDate(o.last_contacted_at)}</td>
+                <td className="px-4 py-2">
+                  {(() => {
+                    const urgency = nextContactUrgency(o.next_contact_date, todayDateString());
+                    const urgencyClass =
+                      urgency === 'overdue'
+                        ? 'font-medium text-rose-600 dark:text-rose-400'
+                        : urgency === 'today'
+                          ? 'font-medium text-amber-600 dark:text-amber-400'
+                          : 'text-stone-500 dark:text-stone-400';
+                    return <span className={urgencyClass}>{formatDateOnly(o.next_contact_date)}</span>;
+                  })()}
+                </td>
                 <td className="max-w-xs px-4 py-2 text-stone-500 dark:text-stone-400">
                   {latestNotes[o.id] ? (
                     <span title={latestNotes[o.id].note}>

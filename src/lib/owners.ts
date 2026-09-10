@@ -50,7 +50,17 @@ export async function bulkCreateOwners(
   return count ?? payload.length;
 }
 
-export async function updateOwner(id: string, input: Partial<OwnerInput & { status: OwnerStatus; notes: string | null; last_contacted_at: string | null }>): Promise<MineralOwner> {
+export async function updateOwner(
+  id: string,
+  input: Partial<
+    OwnerInput & {
+      status: OwnerStatus;
+      notes: string | null;
+      last_contacted_at: string | null;
+      next_contact_date: string | null;
+    }
+  >
+): Promise<MineralOwner> {
   const { data, error } = await supabase.from('mineral_owners').update(input).eq('id', id).select().single();
   if (error) throw error;
   return data;

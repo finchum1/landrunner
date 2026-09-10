@@ -102,6 +102,7 @@ export interface MineralOwner {
   status: OwnerStatus;
   notes: string | null;
   last_contacted_at: string | null;
+  next_contact_date: string | null;
   created_at: string;
   updated_at: string;
 }
