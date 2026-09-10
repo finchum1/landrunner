@@ -399,11 +399,24 @@ export default function ProjectDetailPage() {
           Owners by Status
         </h2>
         <div className="flex flex-wrap gap-2">
-          {STATUS_ORDER.map((s) => (
-            <span key={s} className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_COLORS[s]}`}>
-              {STATUS_LABELS[s]}: {statusCounts[s]}
-            </span>
-          ))}
+          {STATUS_ORDER.map((s) => {
+            const active = statusFilter === s;
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStatusFilter((prev) => (prev === s ? 'all' : s))}
+                title={active ? 'Click to clear this filter' : `Show only ${STATUS_LABELS[s]}`}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition ${STATUS_COLORS[s]} ${
+                  active
+                    ? 'ring-2 ring-amber-500 ring-offset-1 dark:ring-offset-stone-950'
+                    : 'hover:opacity-80'
+                }`}
+              >
+                {STATUS_LABELS[s]}: {statusCounts[s]}
+              </button>
+            );
+          })}
         </div>
       </div>
 

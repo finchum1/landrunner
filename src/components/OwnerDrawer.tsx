@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import type { MineralOwner, OwnerActivity, OwnerStatus } from '../lib/types';
 import { CONTACT_STATUSES, STATUS_ORDER } from '../lib/types';
 import { addActivity, deleteOwner, fetchActivity, updateOwner } from '../lib/owners';
-import { formatDateTime, formatInterest } from '../lib/format';
+import { formatDateOnly, formatDateTime, formatInterest } from '../lib/format';
 import StatusSelect from './StatusSelect';
+import DatePickerModal from './DatePickerModal';
 
 export default function OwnerDrawer({
   owner,
@@ -36,6 +37,7 @@ export default function OwnerDrawer({
   const [status, setStatus] = useState<OwnerStatus>(owner.status);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const [activity, setActivity] = useState<OwnerActivity[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
@@ -45,11 +47,16 @@ export default function OwnerDrawer({
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
-        onClose();
+        // Close the date picker first if it's open, rather than jumping
+        // straight past it and closing the whole owner panel.
+        if (showDatePicker) setShowDatePicker(false);
+        else onClose();
         return;
       }
       // Don't hijack arrow keys while the user is editing a field (cursor
-      // movement inside inputs/textareas/selects should win).
+      // movement inside inputs/textareas/selects should win), or while the
+      // date picker is open (its own day grid is keyboard-focusable too).
+      if (showDatePicker) return;
       const tag = (document.activeElement?.tagName ?? '').toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
       if (e.key === 'ArrowLeft' && hasPrev) onNavigate?.('prev');
@@ -57,7 +64,7 @@ export default function OwnerDrawer({
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [hasPrev, hasNext, onNavigate, onClose]);
+  }, [hasPrev, hasNext, onNavigate, onClose, showDatePicker]);
 
   useEffect(() => {
     let mounted = true;
@@ -250,12 +257,17 @@ export default function OwnerDrawer({
                 <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
                   Next Contact
                 </label>
-                <input
-                  type="date"
-                  value={nextContactDate}
-                  onChange={(e) => setNextContactDate(e.target.value)}
-                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
-                />
+                <button
+                  type="button"
+                  onClick={() => setShowDatePicker(true)}
+                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-left text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                >
+                  {nextContactDate ? (
+                    formatDateOnly(nextContactDate)
+                  ) : (
+                    <span className="text-stone-400">Set a date…</span>
+                  )}
+                </button>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Notes</label>
@@ -327,6 +339,21 @@ export default function OwnerDrawer({
           Delete owner
         </button>
       </div>
+
+      {showDatePicker && (
+        <DatePickerModal
+          value={nextContactDate || null}
+          onSelect={(date) => {
+            setNextContactDate(date);
+            setShowDatePicker(false);
+          }}
+          onClear={() => {
+            setNextContactDate('');
+            setShowDatePicker(false);
+          }}
+          onClose={() => setShowDatePicker(false)}
+        />
+      )}
     </div>
   );
 }
