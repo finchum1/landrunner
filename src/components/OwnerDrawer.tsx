@@ -11,12 +11,18 @@ export default function OwnerDrawer({
   onChanged,
   onDeleted,
   onActivityAdded,
+  onNavigate,
+  hasPrev,
+  hasNext,
 }: {
   owner: MineralOwner;
   onClose: () => void;
   onChanged: (updated: MineralOwner) => void;
   onDeleted: (id: string) => void;
   onActivityAdded?: (ownerId: string, entry: OwnerActivity) => void;
+  onNavigate?: (direction: 'prev' | 'next') => void;
+  hasPrev?: boolean;
+  hasNext?: boolean;
 }) {
   const [nma, setNma] = useState(String(owner.nma ?? ''));
   const [interestPercent, setInterestPercent] = useState(
@@ -34,6 +40,19 @@ export default function OwnerDrawer({
   const [loadingActivity, setLoadingActivity] = useState(true);
   const [newNote, setNewNote] = useState('');
   const [addingNote, setAddingNote] = useState(false);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Don't hijack arrow keys while the user is editing a field (cursor
+      // movement inside inputs/textareas/selects should win).
+      const tag = (document.activeElement?.tagName ?? '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if (e.key === 'ArrowLeft' && hasPrev) onNavigate?.('prev');
+      if (e.key === 'ArrowRight' && hasNext) onNavigate?.('next');
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [hasPrev, hasNext, onNavigate]);
 
   useEffect(() => {
     let mounted = true;
@@ -117,12 +136,32 @@ export default function OwnerDrawer({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
-      <div className="flex h-full w-full max-w-md flex-col overflow-y-auto bg-white p-6 shadow-xl dark:bg-stone-900">
-        <div className="mb-4 flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">{owner.name}</h2>
-            <p className="text-sm text-stone-500 dark:text-stone-400">{formatInterest(owner.interest_decimal)} interest</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-y-auto rounded-xl bg-white p-6 shadow-xl dark:bg-stone-900">
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onNavigate?.('prev')}
+              disabled={!hasPrev}
+              className="rounded-md p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 disabled:opacity-30 disabled:hover:bg-transparent dark:hover:bg-stone-800"
+              aria-label="Previous owner"
+              title="Previous owner"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+            <button
+              onClick={() => onNavigate?.('next')}
+              disabled={!hasNext}
+              className="rounded-md p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600 disabled:opacity-30 disabled:hover:bg-transparent dark:hover:bg-stone-800"
+              aria-label="Next owner"
+              title="Next owner"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
           </div>
           <button
             onClick={onClose}
@@ -133,6 +172,11 @@ export default function OwnerDrawer({
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
+        </div>
+
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">{owner.name}</h2>
+          <p className="text-sm text-stone-500 dark:text-stone-400">{formatInterest(owner.interest_decimal)} interest</p>
         </div>
 
         <div className="mb-5">

@@ -89,8 +89,8 @@ export default function ProjectDetailPage() {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<OwnerStatus | 'all'>('all');
-  const [sortKey, setSortKey] = useState<SortKey>('name');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [sortKey, setSortKey] = useState<SortKey>('nma');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   const [showEdit, setShowEdit] = useState(false);
   const [showAddOwner, setShowAddOwner] = useState(false);
@@ -146,6 +146,8 @@ export default function ProjectDetailPage() {
       })
       .sort((a, b) => compareOwners(a, b, sortKey, sortDir));
   }, [owners, search, statusFilter, sortKey, sortDir]);
+
+  const selectedOwnerIndex = selectedOwner ? filteredOwners.findIndex((o) => o.id === selectedOwner.id) : -1;
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -395,7 +397,9 @@ export default function ProjectDetailPage() {
           projectId={project.id}
           onClose={() => setShowAddOwner(false)}
           onCreated={(owner) => {
-            setOwners((prev) => [...prev, owner].sort((a, b) => a.name.localeCompare(b.name)));
+            // Display order is fully controlled by the table's own sort
+            // (see filteredOwners) -- no need to pre-sort this raw list.
+            setOwners((prev) => [...prev, owner]);
             setShowAddOwner(false);
           }}
         />
@@ -407,6 +411,7 @@ export default function ProjectDetailPage() {
 
       {selectedOwner && (
         <OwnerDrawer
+          key={selectedOwner.id}
           owner={selectedOwner}
           onClose={() => setSelectedOwner(null)}
           onChanged={(updated) => {
@@ -419,6 +424,14 @@ export default function ProjectDetailPage() {
           }}
           onActivityAdded={(ownerId, entry) => {
             setLatestNotes((prev) => ({ ...prev, [ownerId]: { owner_id: ownerId, note: entry.note, created_at: entry.created_at } }));
+          }}
+          hasPrev={selectedOwnerIndex > 0}
+          hasNext={selectedOwnerIndex !== -1 && selectedOwnerIndex < filteredOwners.length - 1}
+          onNavigate={(direction) => {
+            if (selectedOwnerIndex === -1) return;
+            const nextIndex = direction === 'prev' ? selectedOwnerIndex - 1 : selectedOwnerIndex + 1;
+            const nextOwner = filteredOwners[nextIndex];
+            if (nextOwner) setSelectedOwner(nextOwner);
           }}
         />
       )}
