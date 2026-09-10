@@ -43,6 +43,10 @@ export default function OwnerDrawer({
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
       // Don't hijack arrow keys while the user is editing a field (cursor
       // movement inside inputs/textareas/selects should win).
       const tag = (document.activeElement?.tagName ?? '').toLowerCase();
@@ -52,7 +56,7 @@ export default function OwnerDrawer({
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [hasPrev, hasNext, onNavigate]);
+  }, [hasPrev, hasNext, onNavigate, onClose]);
 
   useEffect(() => {
     let mounted = true;
@@ -136,8 +140,11 @@ export default function OwnerDrawer({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-y-auto rounded-xl bg-white p-6 shadow-xl dark:bg-stone-900">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-y-auto rounded-xl bg-white p-6 shadow-xl dark:bg-stone-900"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-1">
             <button
@@ -179,121 +186,125 @@ export default function OwnerDrawer({
           <p className="text-sm text-stone-500 dark:text-stone-400">{formatInterest(owner.interest_decimal)} interest</p>
         </div>
 
-        <div className="mb-5">
-          <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Status</label>
-          <StatusSelect value={status} onChange={handleStatusChange} />
-        </div>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div>
+            <div className="mb-4">
+              <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Status</label>
+              <StatusSelect value={status} onChange={handleStatusChange} />
+            </div>
 
-        <div className="mb-5 grid grid-cols-1 gap-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">NMA</label>
+            <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">NMA</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={nma}
+                    onChange={(e) => setNma(e.target.value)}
+                    className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
+                    Interest (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={interestPercent}
+                    onChange={(e) => setInterestPercent(e.target.value)}
+                    className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Phone</label>
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="(555) 555-5555"
+                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Email</label>
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="owner@example.com"
+                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Address</label>
+                <input
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Notes</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                />
+              </div>
+              <button
+                onClick={handleSaveDetails}
+                disabled={saving}
+                className="self-start rounded-md bg-stone-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-60 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-300"
+              >
+                {saving ? 'Saving…' : 'Save details'}
+              </button>
+            </div>
+
+            {error && (
+              <div className="mt-4 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">
+                {error}
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+              Call log
+            </div>
+            <div className="mb-3 flex gap-2">
               <input
-                type="number"
-                step="0.01"
-                value={nma}
-                onChange={(e) => setNma(e.target.value)}
-                className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddNote();
+                }}
+                placeholder="Log a call or note…"
+                className="flex-1 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
               />
+              <button
+                onClick={handleAddNote}
+                disabled={addingNote || !newNote.trim()}
+                className="rounded-md bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60"
+              >
+                Log
+              </button>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
-                Interest (%)
-              </label>
-              <input
-                type="number"
-                step="0.0001"
-                value={interestPercent}
-                onChange={(e) => setInterestPercent(e.target.value)}
-                className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
-              />
+
+            <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
+              {loadingActivity && <p className="text-sm text-stone-400">Loading…</p>}
+              {!loadingActivity && activity.length === 0 && (
+                <p className="text-sm text-stone-400">No calls logged yet.</p>
+              )}
+              {activity.map((a) => (
+                <div key={a.id} className="rounded-md border border-stone-100 p-3 text-sm dark:border-stone-800">
+                  <p className="text-stone-700 dark:text-stone-300">{a.note}</p>
+                  <p className="mt-1 text-xs text-stone-400">{formatDateTime(a.created_at)}</p>
+                </div>
+              ))}
             </div>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Phone</label>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="(555) 555-5555"
-              className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Email</label>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="owner@example.com"
-              className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Address</label>
-            <input
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Notes</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
-            />
-          </div>
-          <button
-            onClick={handleSaveDetails}
-            disabled={saving}
-            className="self-start rounded-md bg-stone-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-60 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-300"
-          >
-            {saving ? 'Saving…' : 'Save details'}
-          </button>
-        </div>
-
-        {error && (
-          <div className="mb-4 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">
-            {error}
-          </div>
-        )}
-
-        <div className="mb-2 flex items-center justify-between">
-          <div className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
-            Call log
-          </div>
-        </div>
-        <div className="mb-3 flex gap-2">
-          <input
-            value={newNote}
-            onChange={(e) => setNewNote(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleAddNote();
-            }}
-            placeholder="Log a call or note…"
-            className="flex-1 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
-          />
-          <button
-            onClick={handleAddNote}
-            disabled={addingNote || !newNote.trim()}
-            className="rounded-md bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60"
-          >
-            Log
-          </button>
-        </div>
-
-        <div className="flex-1 space-y-3">
-          {loadingActivity && <p className="text-sm text-stone-400">Loading…</p>}
-          {!loadingActivity && activity.length === 0 && (
-            <p className="text-sm text-stone-400">No calls logged yet.</p>
-          )}
-          {activity.map((a) => (
-            <div key={a.id} className="rounded-md border border-stone-100 p-3 text-sm dark:border-stone-800">
-              <p className="text-stone-700 dark:text-stone-300">{a.note}</p>
-              <p className="mt-1 text-xs text-stone-400">{formatDateTime(a.created_at)}</p>
-            </div>
-          ))}
         </div>
 
         <button
