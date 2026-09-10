@@ -9,10 +9,6 @@ export interface ProjectInput {
   township: string | null;
   range: string | null;
   county: string | null;
-  offer_rate_per_acre: number | null;
-  offer_royalty_label: string | null;
-  offer_royalty_fraction: number | null;
-  offer_lease_term_months: number | null;
   notes: string | null;
 }
 

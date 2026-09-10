@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createProject, fetchProjects, type ProjectInput } from '../lib/projects';
 import { fetchAllOwnersLite } from '../lib/owners';
+import { createOfferTerms, fetchAllOfferTermsLite, type OfferTermsInput } from '../lib/offerTerms';
 import type { Project } from '../lib/types';
 import { formatAcres, formatLeaseTerm, formatMoney, legalDescription } from '../lib/format';
 import ProjectFormModal from '../components/ProjectFormModal';
@@ -13,9 +14,18 @@ interface ProjectStats {
   leasedCount: number;
 }
 
+interface TermsPreview {
+  label: string | null;
+  rate_per_acre: number | null;
+  royalty_label: string | null;
+  lease_term_months: number | null;
+  extraCount: number;
+}
+
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [stats, setStats] = useState<Record<string, ProjectStats>>({});
+  const [termsPreview, setTermsPreview] = useState<Record<string, TermsPreview>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -23,7 +33,11 @@ export default function ProjectsPage() {
   async function load() {
     setError(null);
     try {
-      const [projectRows, ownerRows] = await Promise.all([fetchProjects(), fetchAllOwnersLite()]);
+      const [projectRows, ownerRows, termsRows] = await Promise.all([
+        fetchProjects(),
+        fetchAllOwnersLite(),
+        fetchAllOfferTermsLite(),
+      ]);
       setProjects(projectRows);
       const byProject: Record<string, ProjectStats> = {};
       for (const o of ownerRows) {
@@ -37,6 +51,25 @@ export default function ProjectsPage() {
         byProject[o.project_id] = s;
       }
       setStats(byProject);
+
+      // First (lowest sort_order) terms set per project previews on the
+      // card; any additional sets just show as a "+N more" count.
+      const byProjectTerms: Record<string, TermsPreview> = {};
+      for (const t of termsRows) {
+        const existing = byProjectTerms[t.project_id];
+        if (!existing) {
+          byProjectTerms[t.project_id] = {
+            label: t.label,
+            rate_per_acre: t.rate_per_acre,
+            royalty_label: t.royalty_label,
+            lease_term_months: t.lease_term_months,
+            extraCount: 0,
+          };
+        } else {
+          existing.extraCount += 1;
+        }
+      }
+      setTermsPreview(byProjectTerms);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load projects.');
     } finally {
@@ -50,8 +83,9 @@ export default function ProjectsPage() {
 
   const activeProjects = useMemo(() => projects.filter((p) => !p.is_archived), [projects]);
 
-  async function handleCreate(input: ProjectInput) {
-    await createProject(input);
+  async function handleCreate(input: ProjectInput, initialTerms?: OfferTermsInput) {
+    const project = await createProject(input);
+    if (initialTerms) await createOfferTerms(project.id, initialTerms);
     setShowForm(false);
     await load();
   }
@@ -87,6 +121,7 @@ export default function ProjectsPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {activeProjects.map((p) => {
           const s = stats[p.id] ?? { ownerCount: 0, totalNma: 0, leasedNma: 0, leasedCount: 0 };
+          const terms = termsPreview[p.id];
           return (
             <Link
               key={p.id}
@@ -105,11 +140,21 @@ export default function ProjectsPage() {
                 <p className="mb-3 text-sm text-stone-500 dark:text-stone-400">{legalDescription(p)}</p>
               )}
 
-              <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-stone-600 dark:text-stone-300">
-                {p.offer_rate_per_acre != null && <span>{formatMoney(p.offer_rate_per_acre)}/acre</span>}
-                {p.offer_royalty_label && <span>{p.offer_royalty_label} royalty</span>}
-                {p.offer_lease_term_months != null && <span>{formatLeaseTerm(p.offer_lease_term_months)}</span>}
-              </div>
+              {terms ? (
+                <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-stone-600 dark:text-stone-300">
+                  {terms.label && <span className="font-medium text-stone-500 dark:text-stone-400">{terms.label}:</span>}
+                  {terms.rate_per_acre != null && <span>{formatMoney(terms.rate_per_acre)}/acre</span>}
+                  {terms.royalty_label && <span>{terms.royalty_label} royalty</span>}
+                  {terms.lease_term_months != null && <span>{formatLeaseTerm(terms.lease_term_months)}</span>}
+                  {terms.extraCount > 0 && (
+                    <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500 dark:bg-stone-800 dark:text-stone-400">
+                      +{terms.extraCount} more
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <p className="mb-3 text-sm text-stone-400">No offer terms yet</p>
+              )}
 
               <div className="grid grid-cols-3 gap-2 border-t border-stone-100 pt-3 text-center dark:border-stone-800">
                 <div>

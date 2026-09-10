@@ -69,14 +69,25 @@ export interface Project {
   township: string | null;
   range: string | null;
   county: string | null;
-  offer_rate_per_acre: number | null;
-  offer_royalty_label: string | null;
-  offer_royalty_fraction: number | null;
-  offer_lease_term_months: number | null;
   notes: string | null;
   is_archived: boolean;
   created_at: string;
   updated_at: string;
+}
+
+// A project can have more than one offer on the table at once (e.g. a
+// "Standard" tier and a richer "Premium" tier authorized by the client) --
+// these are no longer columns on Project itself.
+export interface ProjectOfferTerms {
+  id: string;
+  project_id: string;
+  label: string | null;
+  rate_per_acre: number | null;
+  royalty_label: string | null;
+  royalty_fraction: number | null;
+  lease_term_months: number | null;
+  sort_order: number;
+  created_at: string;
 }
 
 export interface MineralOwner {

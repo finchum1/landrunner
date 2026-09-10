@@ -3,7 +3,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { deleteProject, updateProject, type ProjectInput } from '../lib/projects';
 import { fetchLatestActivityByProject, fetchOwners, updateOwner, type LatestActivity } from '../lib/owners';
-import type { MineralOwner, OwnerStatus, Project } from '../lib/types';
+import {
+  createOfferTerms,
+  deleteOfferTerms,
+  fetchOfferTerms,
+  updateOfferTerms,
+  type OfferTermsInput,
+} from '../lib/offerTerms';
+import type { MineralOwner, OwnerStatus, Project, ProjectOfferTerms } from '../lib/types';
 import { CONTACT_STATUSES, STATUS_LABELS, STATUS_ORDER } from '../lib/types';
 import {
   formatAcres,
@@ -15,6 +22,7 @@ import {
   truncate,
 } from '../lib/format';
 import ProjectFormModal from '../components/ProjectFormModal';
+import OfferTermsFormModal from '../components/OfferTermsFormModal';
 import AddOwnerModal from '../components/AddOwnerModal';
 import ImportOwnersModal from '../components/ImportOwnersModal';
 import OwnerDrawer from '../components/OwnerDrawer';
@@ -83,6 +91,7 @@ export default function ProjectDetailPage() {
 
   const [project, setProject] = useState<Project | null>(null);
   const [owners, setOwners] = useState<MineralOwner[]>([]);
+  const [offerTerms, setOfferTerms] = useState<ProjectOfferTerms[]>([]);
   const [latestNotes, setLatestNotes] = useState<Record<string, LatestActivity>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,20 +105,25 @@ export default function ProjectDetailPage() {
   const [showAddOwner, setShowAddOwner] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [selectedOwner, setSelectedOwner] = useState<MineralOwner | null>(null);
+  // 'add' for a brand new set, a ProjectOfferTerms to edit an existing one, null to hide.
+  const [termsModal, setTermsModal] = useState<'add' | ProjectOfferTerms | null>(null);
 
   async function load() {
     if (!id) return;
     setError(null);
     try {
-      const [{ data: projectRow, error: projectError }, ownerRows, latestActivityRows] = await Promise.all([
-        supabase.from('projects').select('*').eq('id', id).single(),
-        fetchOwners(id),
-        fetchLatestActivityByProject(id),
-      ]);
+      const [{ data: projectRow, error: projectError }, ownerRows, latestActivityRows, termsRows] =
+        await Promise.all([
+          supabase.from('projects').select('*').eq('id', id).single(),
+          fetchOwners(id),
+          fetchLatestActivityByProject(id),
+          fetchOfferTerms(id),
+        ]);
       if (projectError) throw projectError;
       setProject(projectRow);
       setOwners(ownerRows);
       setLatestNotes(Object.fromEntries(latestActivityRows.map((a) => [a.owner_id, a])));
+      setOfferTerms(termsRows);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load this project.');
     } finally {
@@ -126,16 +140,13 @@ export default function ProjectDetailPage() {
     const totalNma = owners.reduce((sum, o) => sum + o.nma, 0);
     const leased = owners.filter((o) => o.status === 'leased');
     const leasedNma = leased.reduce((sum, o) => sum + o.nma, 0);
-    const rate = project?.offer_rate_per_acre ?? 0;
     return {
       ownerCount: owners.length,
       totalNma,
       leasedCount: leased.length,
       leasedNma,
-      totalBonus: rate * totalNma,
-      leasedBonus: rate * leasedNma,
     };
-  }, [owners, project]);
+  }, [owners]);
 
   const filteredOwners = useMemo(() => {
     return owners
@@ -173,6 +184,28 @@ export default function ProjectDetailPage() {
       navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not delete this project.');
+    }
+  }
+
+  async function handleTermsSubmit(input: OfferTermsInput) {
+    if (!project) return;
+    if (termsModal === 'add') {
+      const created = await createOfferTerms(project.id, input);
+      setOfferTerms((prev) => [...prev, created]);
+    } else if (termsModal) {
+      const updated = await updateOfferTerms(termsModal.id, input);
+      setOfferTerms((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+    }
+    setTermsModal(null);
+  }
+
+  async function handleDeleteTerms(termsId: string) {
+    if (!confirm('Delete this set of terms?')) return;
+    try {
+      await deleteOfferTerms(termsId);
+      setOfferTerms((prev) => prev.filter((t) => t.id !== termsId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not delete these terms.');
     }
   }
 
@@ -242,32 +275,71 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-x-6 gap-y-2 rounded-lg border border-stone-200 bg-white px-4 py-3 text-sm dark:border-stone-800 dark:bg-stone-900">
-        <div>
-          <span className="text-stone-400">Offer: </span>
-          <span className="font-medium text-stone-800 dark:text-stone-200">
-            {formatMoney(project.offer_rate_per_acre)}/acre
-          </span>
+      <div className="mb-6">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+            Offer Terms
+          </h2>
+          <button
+            onClick={() => setTermsModal('add')}
+            className="text-sm font-medium text-amber-700 hover:underline dark:text-amber-400"
+          >
+            + Add another set of terms
+          </button>
         </div>
-        <div>
-          <span className="text-stone-400">Royalty: </span>
-          <span className="font-medium text-stone-800 dark:text-stone-200">{project.offer_royalty_label ?? '—'}</span>
-        </div>
-        <div>
-          <span className="text-stone-400">Term: </span>
-          <span className="font-medium text-stone-800 dark:text-stone-200">
-            {formatLeaseTerm(project.offer_lease_term_months)}
-          </span>
-        </div>
+        {offerTerms.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-stone-300 p-4 text-center text-sm text-stone-400 dark:border-stone-700">
+            No offer terms yet.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {offerTerms.map((t) => {
+              const totalBonus = t.rate_per_acre != null ? t.rate_per_acre * stats.totalNma : null;
+              const leasedBonus = t.rate_per_acre != null ? t.rate_per_acre * stats.leasedNma : null;
+              return (
+                <div
+                  key={t.id}
+                  className="rounded-lg border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-900"
+                >
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="font-medium text-stone-900 dark:text-stone-100">{t.label || 'Untitled'}</span>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setTermsModal(t)}
+                        className="text-xs font-medium text-stone-500 hover:text-stone-700 dark:hover:text-stone-300"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTerms(t.id)}
+                        className="text-xs font-medium text-rose-500 hover:text-rose-600 dark:text-rose-400"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-stone-600 dark:text-stone-300">
+                    <span>{formatMoney(t.rate_per_acre)}/acre</span>
+                    <span>{t.royalty_label ?? '—'} royalty</span>
+                    <span>{formatLeaseTerm(t.lease_term_months)}</span>
+                  </div>
+                  {totalBonus != null && (
+                    <div className="mt-2 text-xs text-stone-400">
+                      Est. total bonus: {formatMoney(totalBonus)} · Est. leased bonus: {formatMoney(leasedBonus)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="mb-6 grid grid-cols-3 gap-3">
         {[
           { label: 'Owners', value: stats.ownerCount },
           { label: 'Total NMA', value: formatAcres(stats.totalNma) },
           { label: 'Leased', value: `${stats.leasedCount} / ${formatAcres(stats.leasedNma)} NMA` },
-          { label: 'Est. Total Bonus', value: formatMoney(stats.totalBonus) },
-          { label: 'Est. Leased Bonus', value: formatMoney(stats.leasedBonus) },
         ].map((s) => (
           <div key={s.label} className="rounded-lg border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-900">
             <div className="text-sm font-semibold text-stone-900 dark:text-stone-100">{s.value}</div>
@@ -391,6 +463,14 @@ export default function ProjectDetailPage() {
       </div>
 
       {showEdit && <ProjectFormModal project={project} onClose={() => setShowEdit(false)} onSubmit={handleEditSubmit} />}
+
+      {termsModal && (
+        <OfferTermsFormModal
+          terms={termsModal === 'add' ? undefined : termsModal}
+          onClose={() => setTermsModal(null)}
+          onSubmit={handleTermsSubmit}
+        />
+      )}
 
       {showAddOwner && (
         <AddOwnerModal

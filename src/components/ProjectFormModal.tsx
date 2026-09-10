@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { ROYALTY_PRESETS, type Project } from '../lib/types';
 import type { ProjectInput } from '../lib/projects';
+import type { OfferTermsInput } from '../lib/offerTerms';
 
 export default function ProjectFormModal({
   project,
@@ -9,8 +10,10 @@ export default function ProjectFormModal({
 }: {
   project?: Project;
   onClose: () => void;
-  onSubmit: (input: ProjectInput) => Promise<void>;
+  onSubmit: (input: ProjectInput, initialTerms?: OfferTermsInput) => Promise<void>;
 }) {
+  const isNew = !project;
+
   const [name, setName] = useState(project?.name ?? '');
   const [prospectNumber, setProspectNumber] = useState(project?.prospect_number ?? '');
   const [targetArea, setTargetArea] = useState(project?.target_area ?? '');
@@ -18,20 +21,13 @@ export default function ProjectFormModal({
   const [township, setTownship] = useState(project?.township ?? '');
   const [range, setRange] = useState(project?.range ?? '');
   const [county, setCounty] = useState(project?.county ?? '');
-  const [rate, setRate] = useState(project?.offer_rate_per_acre?.toString() ?? '');
-  const [royaltyChoice, setRoyaltyChoice] = useState(
-    project?.offer_royalty_label && ROYALTY_PRESETS.some((r) => r.label === project.offer_royalty_label)
-      ? project.offer_royalty_label
-      : project?.offer_royalty_label
-        ? 'custom'
-        : '1/8'
-  );
-  const [customRoyalty, setCustomRoyalty] = useState(
-    royaltyChoice === 'custom' ? project?.offer_royalty_label ?? '' : ''
-  );
-  const [termYears, setTermYears] = useState(
-    project?.offer_lease_term_months ? String(project.offer_lease_term_months / 12) : '1'
-  );
+  // Only meaningful when creating a new project -- becomes its first
+  // ("Standard") offer terms row. Editing a project no longer touches
+  // terms; those are managed as their own list on the project detail page.
+  const [rate, setRate] = useState('');
+  const [royaltyChoice, setRoyaltyChoice] = useState('1/8');
+  const [customRoyalty, setCustomRoyalty] = useState('');
+  const [termYears, setTermYears] = useState('1');
   const [notes, setNotes] = useState(project?.notes ?? '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -43,26 +39,36 @@ export default function ProjectFormModal({
       setError('Project name is required.');
       return;
     }
-    const royaltyLabel = royaltyChoice === 'custom' ? customRoyalty.trim() : royaltyChoice;
-    const preset = ROYALTY_PRESETS.find((r) => r.label === royaltyLabel);
-    const termMonths = termYears ? Math.round(parseFloat(termYears) * 12) : null;
+
+    let initialTerms: OfferTermsInput | undefined;
+    if (isNew && rate.trim() !== '') {
+      const royaltyLabel = royaltyChoice === 'custom' ? customRoyalty.trim() : royaltyChoice;
+      const preset = ROYALTY_PRESETS.find((r) => r.label === royaltyLabel);
+      const termMonths = termYears ? Math.round(parseFloat(termYears) * 12) : null;
+      initialTerms = {
+        label: 'Standard',
+        rate_per_acre: parseFloat(rate),
+        royalty_label: royaltyLabel || null,
+        royalty_fraction: preset ? preset.fraction : null,
+        lease_term_months: termMonths,
+      };
+    }
 
     setSubmitting(true);
     try {
-      await onSubmit({
-        name: name.trim(),
-        prospect_number: prospectNumber.trim() || null,
-        target_area: targetArea.trim() || null,
-        section: section.trim() || null,
-        township: township.trim() || null,
-        range: range.trim() || null,
-        county: county.trim() || null,
-        offer_rate_per_acre: rate ? parseFloat(rate) : null,
-        offer_royalty_label: royaltyLabel || null,
-        offer_royalty_fraction: preset ? preset.fraction : null,
-        offer_lease_term_months: termMonths,
-        notes: notes.trim() || null,
-      });
+      await onSubmit(
+        {
+          name: name.trim(),
+          prospect_number: prospectNumber.trim() || null,
+          target_area: targetArea.trim() || null,
+          section: section.trim() || null,
+          township: township.trim() || null,
+          range: range.trim() || null,
+          county: county.trim() || null,
+          notes: notes.trim() || null,
+        },
+        initialTerms
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong saving this project.');
     } finally {
@@ -162,66 +168,68 @@ export default function ProjectFormModal({
             </div>
           </div>
 
-          <div className="rounded-lg border border-stone-200 p-3 dark:border-stone-800">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
-              Offer terms
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
-                  $ / acre
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={rate}
-                  onChange={(e) => setRate(e.target.value)}
-                  placeholder="150"
-                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
-                />
+          {isNew && (
+            <div className="rounded-lg border border-stone-200 p-3 dark:border-stone-800">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+                Offer terms (optional — you can add more terms later)
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
-                  Royalty
-                </label>
-                <select
-                  value={royaltyChoice}
-                  onChange={(e) => setRoyaltyChoice(e.target.value)}
-                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
-                >
-                  {ROYALTY_PRESETS.map((r) => (
-                    <option key={r.label} value={r.label}>
-                      {r.label}
-                    </option>
-                  ))}
-                  <option value="custom">Custom…</option>
-                </select>
-                {royaltyChoice === 'custom' && (
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
+                    $ / acre
+                  </label>
                   <input
-                    value={customRoyalty}
-                    onChange={(e) => setCustomRoyalty(e.target.value)}
-                    placeholder='e.g. "1/6"'
-                    className="mt-2 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={rate}
+                    onChange={(e) => setRate(e.target.value)}
+                    placeholder="150"
+                    className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
                   />
-                )}
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
-                  Term (years)
-                </label>
-                <input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  value={termYears}
-                  onChange={(e) => setTermYears(e.target.value)}
-                  placeholder="1"
-                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
-                />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
+                    Royalty
+                  </label>
+                  <select
+                    value={royaltyChoice}
+                    onChange={(e) => setRoyaltyChoice(e.target.value)}
+                    className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                  >
+                    {ROYALTY_PRESETS.map((r) => (
+                      <option key={r.label} value={r.label}>
+                        {r.label}
+                      </option>
+                    ))}
+                    <option value="custom">Custom…</option>
+                  </select>
+                  {royaltyChoice === 'custom' && (
+                    <input
+                      value={customRoyalty}
+                      onChange={(e) => setCustomRoyalty(e.target.value)}
+                      placeholder='e.g. "1/6"'
+                      className="mt-2 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
+                    Term (years)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    value={termYears}
+                    onChange={(e) => setTermYears(e.target.value)}
+                    placeholder="1"
+                    className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div>
             <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
