@@ -26,7 +26,7 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-stone-50 px-4 dark:bg-stone-950">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <Logo size={40} className="mb-2" />
+          <Logo height={56} className="mb-2" />
           <p className="text-sm text-stone-500 dark:text-stone-400">Mineral lease tracking</p>
         </div>
         <form

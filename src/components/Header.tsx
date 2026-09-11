@@ -8,7 +8,7 @@ export default function Header({ email }: { email?: string }) {
     <header className="border-b border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
         <Link to="/">
-          <Logo size={24} />
+          <Logo height={28} />
         </Link>
         <div className="flex items-center gap-3">
           {email && <span className="hidden text-sm text-stone-500 sm:inline dark:text-stone-400">{email}</span>}
