@@ -20,7 +20,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <div className="flex min-h-screen bg-stone-50 dark:bg-stone-950">
+      <div className="flex h-screen overflow-hidden bg-stone-50 dark:bg-stone-950">
         <Sidebar email={session.user.email} />
         <main className="min-w-0 flex-1 overflow-y-auto">
           <Routes>
