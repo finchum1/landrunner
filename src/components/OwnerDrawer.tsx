@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import type { ExtraPhone, MineralOwner, OwnerActivity, OwnerStatus } from '../lib/types';
+import type { ExtraPhone, MineralOwner, OwnerActivity, OwnerStatus, ProjectOfferTerms } from '../lib/types';
 import { CONTACT_STATUSES, STATUS_LABELS, STATUS_ORDER } from '../lib/types';
 import { addActivity, deleteOwner, fetchActivity, updateOwner } from '../lib/owners';
 import { formatDateOnly, formatDateTime, formatInterest, todayDateString } from '../lib/format';
 import { CALL_OUTCOMES, planOutcome, type CallOutcome } from '../lib/callOutcomes';
 import { usablePhones } from '../lib/callQueue';
+import { bonusDue } from '../lib/bonus';
+import { formatMoney } from '../lib/format';
 import { mailtoHref, smsHref, telHref } from '../lib/contact';
 import StatusSelect from './StatusSelect';
 import DatePickerModal from './DatePickerModal';
@@ -40,6 +42,8 @@ export default function OwnerDrawer({
   hasNext,
   queueLabel,
   onOutcomeLogged,
+  offerTerms = [],
+  onOfferLetter,
 }: {
   owner: MineralOwner;
   onClose: () => void;
@@ -53,6 +57,8 @@ export default function OwnerDrawer({
   queueLabel?: string;
   // Fired after a call outcome is logged, so the queue can advance.
   onOutcomeLogged?: (updated: MineralOwner) => void;
+  offerTerms?: ProjectOfferTerms[];
+  onOfferLetter?: () => void;
 }) {
   const [nma, setNma] = useState(String(owner.nma ?? ''));
   const [interestPercent, setInterestPercent] = useState(
@@ -126,6 +132,15 @@ export default function OwnerDrawer({
       setError(err instanceof Error ? err.message : 'Could not update that flag.');
       setPhoneWrong(owner.phone_wrong);
       setDoNotContact(owner.do_not_contact);
+    }
+  }
+
+  async function handleOfferField(patch: { offer_terms_id?: string | null; bonus_paid_at?: string | null }) {
+    setError(null);
+    try {
+      onChanged(await updateOwner(owner.id, patch));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save that.');
     }
   }
 
@@ -536,6 +551,63 @@ export default function OwnerDrawer({
                 </div>
               ))}
             </div>
+            {offerTerms.length > 0 && (
+              <div className="mt-4 rounded-md border border-stone-200 p-3 dark:border-stone-800">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Offer</span>
+                  {onOfferLetter && (
+                    <button
+                      type="button"
+                      onClick={onOfferLetter}
+                      className="text-xs font-medium text-amber-700 hover:underline dark:text-amber-400"
+                    >
+                      Offer letter (.docx)
+                    </button>
+                  )}
+                </div>
+                <select
+                  value={owner.offer_terms_id ?? ''}
+                  onChange={(e) => handleOfferField({ offer_terms_id: e.target.value || null })}
+                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                >
+                  <option value="">Default terms ({offerTerms[0]?.label || 'first set'})</option>
+                  {offerTerms.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.label || 'Untitled'} — {t.rate_per_acre != null ? `$${t.rate_per_acre}/ac` : ''} {t.royalty_label ?? ''}
+                    </option>
+                  ))}
+                </select>
+                {owner.status === 'leased' && (() => {
+                  const due = bonusDue(owner, offerTerms);
+                  return (
+                    <div className="mt-2 text-sm text-stone-700 dark:text-stone-300">
+                      <div>
+                        Bonus due: <strong>{formatMoney(due)}</strong>
+                        <span className="text-xs text-stone-400"> ({owner.nma} NMA)</span>
+                      </div>
+                      <div className="mt-1 flex items-center gap-2">
+                        <label className="text-xs text-stone-500">Paid on</label>
+                        <input
+                          type="date"
+                          value={owner.bonus_paid_at ?? ''}
+                          onChange={(e) => handleOfferField({ bonus_paid_at: e.target.value || null })}
+                          className="rounded-md border border-stone-300 bg-white px-2 py-1 text-sm dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                        />
+                        {!owner.bonus_paid_at && (
+                          <button
+                            type="button"
+                            onClick={() => handleOfferField({ bonus_paid_at: todayDateString() })}
+                            className="text-xs font-medium text-amber-700 hover:underline dark:text-amber-400"
+                          >
+                            Mark paid today
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
             <div className="mt-4">
                 <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Notes</label>
                 <textarea

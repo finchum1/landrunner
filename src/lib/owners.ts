@@ -61,6 +61,8 @@ export async function updateOwner(
       extra_phones: ExtraPhone[];
       phone_wrong: boolean;
       do_not_contact: boolean;
+      offer_terms_id: string | null;
+      bonus_paid_at: string | null;
     }
   >
 ): Promise<MineralOwner> {
@@ -167,5 +169,12 @@ export async function bulkPatchOwners(
 export async function bulkDeleteOwners(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   const { error } = await supabase.from('mineral_owners').delete().in('id', ids);
+  if (error) throw error;
+}
+
+// Log the same kind of entry against many owners at once (e.g. "offer letter prepared").
+export async function bulkAddActivity(rows: { owner_id: string; note: string; outcome?: string | null }[]): Promise<void> {
+  if (rows.length === 0) return;
+  const { error } = await supabase.from('owner_activity').insert(rows.map((r) => ({ outcome: null, ...r })));
   if (error) throw error;
 }

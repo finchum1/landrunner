@@ -70,6 +70,10 @@ export interface Project {
   range: string | null;
   county: string | null;
   notes: string | null;
+  // The operator the landman is leasing for; named in offer letters.
+  operator_name: string | null;
+  // Days an offer stays open after receipt (offer letter wording).
+  offer_valid_days: number;
   is_archived: boolean;
   created_at: string;
   updated_at: string;
@@ -86,6 +90,7 @@ export interface ProjectOfferTerms {
   royalty_label: string | null;
   royalty_fraction: number | null;
   lease_term_months: number | null;
+  option_to_extend: boolean;
   sort_order: number;
   created_at: string;
 }
@@ -109,8 +114,20 @@ export interface MineralOwner {
   // The main `phone` turned out to be wrong (wrong person / disconnected).
   phone_wrong: boolean;
   do_not_contact: boolean;
+  // Which of the project's offer tiers this owner was offered (null = default tier).
+  offer_terms_id: string | null;
+  // "YYYY-MM-DD" the lease bonus was paid to this owner.
+  bonus_paid_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface LandmanProfile {
+  id: string;
+  full_name: string | null;
+  title: string | null;
+  phone: string | null;
+  email: string | null;
 }
 
 export interface ExtraPhone {

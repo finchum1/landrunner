@@ -7,6 +7,7 @@ export interface OfferTermsInput {
   royalty_label: string | null;
   royalty_fraction: number | null;
   lease_term_months: number | null;
+  option_to_extend?: boolean;
 }
 
 export async function fetchOfferTerms(projectId: string): Promise<ProjectOfferTerms[]> {

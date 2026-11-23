@@ -10,6 +10,8 @@ export interface ProjectInput {
   range: string | null;
   county: string | null;
   notes: string | null;
+  operator_name?: string | null;
+  offer_valid_days?: number;
 }
 
 export async function fetchProjects(): Promise<Project[]> {

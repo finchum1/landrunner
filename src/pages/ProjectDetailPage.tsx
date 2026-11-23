@@ -12,6 +12,8 @@ import {
 } from '../lib/owners';
 import { exportOwnersXlsx } from '../lib/exportOwners';
 import DatePickerModal from '../components/DatePickerModal';
+import OfferLetterModal from '../components/OfferLetterModal';
+import { bonusSummary } from '../lib/bonus';
 import {
   createOfferTerms,
   deleteOfferTerms,
@@ -134,6 +136,8 @@ export default function ProjectDetailPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDatePicker, setBulkDatePicker] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  // Owners an offer letter is being prepared for (null = dialog closed).
+  const [letterTargets, setLetterTargets] = useState<MineralOwner[] | null>(null);
 
   const [project, setProject] = useState<Project | null>(null);
   const [owners, setOwners] = useState<MineralOwner[]>([]);
@@ -220,6 +224,8 @@ export default function ProjectDetailPage() {
     const today = todayDateString();
     return owners.filter((o) => o.next_contact_date && o.next_contact_date <= today).length;
   }, [owners]);
+
+  const bonus = useMemo(() => bonusSummary(owners, offerTerms), [owners, offerTerms]);
 
   const zeroNmaCount = useMemo(() => owners.filter((o) => !(o.nma > 0)).length, [owners]);
 
@@ -543,6 +549,21 @@ export default function ProjectDetailPage() {
         ))}
       </div>
 
+      {bonus.owed > 0 && (
+        <div className="mb-6 flex flex-wrap gap-x-6 gap-y-1 rounded-lg border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-stone-800 dark:bg-stone-900">
+          <span className="text-stone-500 dark:text-stone-400">
+            Leased bonus: <strong className="text-stone-900 dark:text-stone-100">{formatMoney(bonus.owed)}</strong>
+          </span>
+          <span className="text-stone-500 dark:text-stone-400">
+            Paid: <strong className="text-emerald-600 dark:text-emerald-400">{formatMoney(bonus.paid)}</strong>
+          </span>
+          <span className="text-stone-500 dark:text-stone-400">
+            Outstanding: <strong className="text-amber-600 dark:text-amber-400">{formatMoney(bonus.outstanding)}</strong>
+            {bonus.unpaidCount > 0 && ` (${bonus.unpaidCount} owner${bonus.unpaidCount === 1 ? '' : 's'})`}
+          </span>
+        </div>
+      )}
+
       <div className="mb-6">
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
           Owners by Status
@@ -699,6 +720,14 @@ export default function ProjectDetailPage() {
             className="rounded-md border border-stone-300 bg-white px-2 py-1 text-sm hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
           >
             Mark do-not-contact
+          </button>
+          <button
+            disabled={bulkBusy || offerTerms.length === 0}
+            onClick={() => setLetterTargets(owners.filter((o) => selectedIds.has(o.id)))}
+            className="rounded-md border border-stone-300 bg-white px-2 py-1 text-sm hover:bg-stone-100 disabled:opacity-50 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+            title={offerTerms.length === 0 ? 'Add offer terms to this project first' : 'Create offer letters (.docx) for the selected owners'}
+          >
+            Offer letters…
           </button>
           <button
             disabled={bulkBusy}
@@ -903,6 +932,20 @@ export default function ProjectDetailPage() {
         )}
       </div>
 
+      {letterTargets && (
+        <OfferLetterModal
+          project={project}
+          owners={letterTargets}
+          terms={offerTerms}
+          onClose={() => setLetterTargets(null)}
+          onMarked={(updated) => {
+            const byId = new Map(updated.map((o) => [o.id, o]));
+            setOwners((prev) => prev.map((o) => byId.get(o.id) ?? o));
+            setSelectedOwner((cur) => (cur ? byId.get(cur.id) ?? cur : cur));
+          }}
+        />
+      )}
+
       {bulkDatePicker && (
         <DatePickerModal
           value={null}
@@ -964,6 +1007,8 @@ export default function ProjectDetailPage() {
           hasPrev={selectedOwnerIndex > 0}
           hasNext={selectedOwnerIndex !== -1 && selectedOwnerIndex < navList.length - 1}
           queueLabel={queueIds && selectedOwnerIndex !== -1 ? `${selectedOwnerIndex + 1} of ${navList.length}` : undefined}
+          offerTerms={offerTerms}
+          onOfferLetter={() => setLetterTargets([selectedOwner])}
           onOutcomeLogged={(updated) => {
             if (!queueIds) return;
             // Auto-advance to the next owner still in the queue.

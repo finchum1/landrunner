@@ -26,6 +26,7 @@ export default function OfferTermsFormModal({
   const [termYears, setTermYears] = useState(
     terms?.lease_term_months ? String(terms.lease_term_months / 12) : '1'
   );
+  const [optionToExtend, setOptionToExtend] = useState(terms?.option_to_extend ?? false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -44,6 +45,7 @@ export default function OfferTermsFormModal({
         royalty_label: royaltyLabel || null,
         royalty_fraction: preset ? preset.fraction : null,
         lease_term_months: termMonths,
+        option_to_extend: optionToExtend,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong saving these terms.');
@@ -129,6 +131,11 @@ export default function OfferTermsFormModal({
               />
             </div>
           </div>
+
+          <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+            <input type="checkbox" checked={optionToExtend} onChange={(e) => setOptionToExtend(e.target.checked)} />
+            Includes an option to extend <span className="text-xs text-stone-400">(worded into the offer letter)</span>
+          </label>
 
           {error && (
             <div className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">
