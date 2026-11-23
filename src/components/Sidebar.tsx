@@ -200,7 +200,7 @@ export default function Sidebar({ email }: { email?: string }) {
       {/* Desktop sidebar */}
       <aside
         style={{ width: navWidth }}
-        className={`relative z-40 hidden shrink-0 flex-col border-r border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900 md:flex md:h-full ${
+        className={`relative z-40 hidden shrink-0 flex-col border-r border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900 md:flex md:h-full print:hidden ${
           navLive === null ? 'transition-[width] duration-200 ease-out motion-reduce:transition-none' : ''
         }`}
       >
@@ -273,7 +273,7 @@ export default function Sidebar({ email }: { email?: string }) {
       </aside>
 
       {/* Mobile top bar: the menu button opens the drawer below. */}
-      <header className="shrink-0 border-b border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900 md:hidden">
+      <header className="shrink-0 border-b border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900 md:hidden print:hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <Link to="/">
             <Logo height={32} />

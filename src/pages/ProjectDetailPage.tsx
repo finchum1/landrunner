@@ -461,6 +461,12 @@ export default function ProjectDetailPage() {
           )}
         </div>
         <div className="flex gap-2">
+          <Link
+            to={`/projects/${project.id}/report`}
+            className="rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+          >
+            Client report
+          </Link>
           <button
             onClick={() => setShowEdit(true)}
             className="rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"

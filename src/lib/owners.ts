@@ -178,3 +178,18 @@ export async function bulkAddActivity(rows: { owner_id: string; note: string; ou
   const { error } = await supabase.from('owner_activity').insert(rows.map((r) => ({ outcome: null, ...r })));
   if (error) throw error;
 }
+
+// Call-log / activity entries for a set of owners since a timestamp (status reports).
+export async function fetchActivitySince(
+  ownerIds: string[],
+  sinceIso: string
+): Promise<{ owner_id: string; note: string; outcome: string | null; created_at: string }[]> {
+  if (ownerIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('owner_activity')
+    .select('owner_id, note, outcome, created_at')
+    .in('owner_id', ownerIds)
+    .gte('created_at', sinceIso);
+  if (error) throw error;
+  return data ?? [];
+}
