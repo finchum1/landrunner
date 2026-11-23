@@ -1,4 +1,9 @@
 import type { MineralOwner } from './types';
+
+export type QueueOwner = Pick<
+  MineralOwner,
+  'name' | 'nma' | 'status' | 'phone' | 'phone_wrong' | 'extra_phones' | 'do_not_contact' | 'next_contact_date'
+>;
 import { isWorkingStatus } from './callOutcomes';
 
 // Phones we'd actually dial: the main number (unless flagged wrong) plus any
@@ -24,7 +29,7 @@ export interface QueueOptions {
 // Who to call, in order. Due/overdue follow-ups first (oldest date first, then
 // biggest NMA), then owners with no date set by biggest NMA. Future-dated
 // follow-ups wait their turn, so they're excluded.
-export function buildCallQueue(owners: MineralOwner[], { today, hideZeroNma }: QueueOptions): MineralOwner[] {
+export function buildCallQueue<T extends QueueOwner>(owners: T[], { today, hideZeroNma }: QueueOptions): T[] {
   const eligible = owners.filter(
     (o) =>
       isWorkingStatus(o.status) &&

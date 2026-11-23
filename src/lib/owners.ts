@@ -129,3 +129,43 @@ export async function bulkUpdateOwners(
   }
   return done;
 }
+
+export type DashboardOwner = Pick<
+  MineralOwner,
+  | 'id'
+  | 'project_id'
+  | 'name'
+  | 'nma'
+  | 'status'
+  | 'phone'
+  | 'phone_wrong'
+  | 'extra_phones'
+  | 'do_not_contact'
+  | 'next_contact_date'
+>;
+
+// Every owner across all projects, with just the columns the home dashboard needs.
+export async function fetchDashboardOwners(): Promise<DashboardOwner[]> {
+  const { data, error } = await supabase
+    .from('mineral_owners')
+    .select('id, project_id, name, nma, status, phone, phone_wrong, extra_phones, do_not_contact, next_contact_date');
+  if (error) throw error;
+  return data ?? [];
+}
+
+// Bulk edit / delete a set of owners in one request each.
+export async function bulkPatchOwners(
+  ids: string[],
+  patch: Parameters<typeof updateOwner>[1]
+): Promise<MineralOwner[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.from('mineral_owners').update(patch).in('id', ids).select();
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function bulkDeleteOwners(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const { error } = await supabase.from('mineral_owners').delete().in('id', ids);
+  if (error) throw error;
+}

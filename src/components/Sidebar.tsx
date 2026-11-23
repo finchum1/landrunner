@@ -27,6 +27,14 @@ function readNav(): { open: boolean; px: number } {
 }
 
 const ICON_PATHS = {
+  dashboard: (
+    <>
+      <rect x="3.5" y="3.5" width="7" height="8" rx="1.5" />
+      <rect x="13.5" y="3.5" width="7" height="5" rx="1.5" />
+      <rect x="13.5" y="11.5" width="7" height="9" rx="1.5" />
+      <rect x="3.5" y="14.5" width="7" height="6" rx="1.5" />
+    </>
+  ),
   projects: (
     <>
       <path d="M12 3.5l8.5 4.7-8.5 4.7-8.5-4.7z" />
@@ -55,10 +63,10 @@ function NavIcon({ name }: { name: keyof typeof ICON_PATHS }) {
   );
 }
 
-// Just one module for now ("Projects") -- more will be added here as
-// Terrence decides what else belongs in the sidebar.
+// Dashboard (follow-ups across projects) and Projects. More modules get added here.
 const NAV: { to: string; label: string; icon: keyof typeof ICON_PATHS; match: (p: string) => boolean }[] = [
-  { to: '/', label: 'Projects', icon: 'projects', match: (p) => p === '/' || p.startsWith('/projects') },
+  { to: '/', label: 'Dashboard', icon: 'dashboard', match: (p) => p === '/' },
+  { to: '/projects', label: 'Projects', icon: 'projects', match: (p) => p.startsWith('/projects') },
 ];
 
 function NavItems({ rail, pathname, onNavigate }: { rail: boolean; pathname: string; onNavigate?: () => void }) {

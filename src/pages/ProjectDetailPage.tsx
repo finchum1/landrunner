@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { deleteProject, updateProject, type ProjectInput } from '../lib/projects';
-import { fetchLatestActivityByProject, fetchOwners, updateOwner, type LatestActivity } from '../lib/owners';
+import {
+  bulkDeleteOwners,
+  bulkPatchOwners,
+  fetchLatestActivityByProject,
+  fetchOwners,
+  updateOwner,
+  type LatestActivity,
+} from '../lib/owners';
+import { exportOwnersXlsx } from '../lib/exportOwners';
+import DatePickerModal from '../components/DatePickerModal';
 import {
   createOfferTerms,
   deleteOfferTerms,
@@ -29,7 +38,8 @@ import AddOwnerModal from '../components/AddOwnerModal';
 import ImportOwnersModal from '../components/ImportOwnersModal';
 import OwnerDrawer from '../components/OwnerDrawer';
 import StatusSelect from '../components/StatusSelect';
-import { buildCallQueue, hasAnyPhone } from '../lib/callQueue';
+import { buildCallQueue, hasAnyPhone, usablePhones } from '../lib/callQueue';
+import { telHref } from '../lib/contact';
 
 type ContactFilter = 'all' | 'no_phone' | 'no_email' | 'has_phone' | 'wrong_phone' | 'dnc';
 
@@ -119,6 +129,11 @@ function SortableHeader({
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Bulk selection (owner ids) and the bulk "set next contact" date picker.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDatePicker, setBulkDatePicker] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const [project, setProject] = useState<Project | null>(null);
   const [owners, setOwners] = useState<MineralOwner[]>([]);
@@ -172,6 +187,16 @@ export default function ProjectDetailPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Deep link from the dashboard: /projects/:id?owner=<ownerId> opens that owner.
+  const ownerParam = searchParams.get('owner');
+  useEffect(() => {
+    if (!ownerParam || owners.length === 0) return;
+    const target = owners.find((o) => o.id === ownerParam);
+    if (target) setSelectedOwner(target);
+    setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownerParam, owners.length]);
 
   const stats = useMemo(() => {
     const totalNma = owners.reduce((sum, o) => sum + o.nma, 0);
@@ -261,6 +286,70 @@ export default function ProjectDetailPage() {
     setSelectedOwner(callQueue[0]);
   }
 
+  const allVisibleSelected = filteredOwners.length > 0 && filteredOwners.every((o) => selectedIds.has(o.id));
+  const selectedCount = owners.filter((o) => selectedIds.has(o.id)).length;
+
+  function toggleSelected(ownerId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(ownerId)) next.delete(ownerId);
+      else next.add(ownerId);
+      return next;
+    });
+  }
+
+  function toggleSelectAllVisible() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) filteredOwners.forEach((o) => next.delete(o.id));
+      else filteredOwners.forEach((o) => next.add(o.id));
+      return next;
+    });
+  }
+
+  async function runBulk(patch: Parameters<typeof bulkPatchOwners>[1]) {
+    const ids = owners.filter((o) => selectedIds.has(o.id)).map((o) => o.id);
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    setError(null);
+    try {
+      const updated = await bulkPatchOwners(ids, patch);
+      const byId = new Map(updated.map((o) => [o.id, o]));
+      setOwners((prev) => prev.map((o) => byId.get(o.id) ?? o));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update those owners.');
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function handleBulkDelete() {
+    const ids = owners.filter((o) => selectedIds.has(o.id)).map((o) => o.id);
+    if (ids.length === 0) return;
+    if (!confirm(`Delete ${ids.length} owner${ids.length === 1 ? '' : 's'} and their call logs? This can't be undone.`)) return;
+    setBulkBusy(true);
+    try {
+      await bulkDeleteOwners(ids);
+      setOwners((prev) => prev.filter((o) => !selectedIds.has(o.id)));
+      setSelectedIds(new Set());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not delete those owners.');
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function handleExport() {
+    if (!project) return;
+    // Export the selection if there is one, otherwise whatever the table shows.
+    const rows = selectedCount > 0 ? owners.filter((o) => selectedIds.has(o.id)) : filteredOwners;
+    try {
+      await exportOwnersXlsx(project, rows, latestNotes);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create the export.');
+    }
+  }
+
   function closeDrawer() {
     setSelectedOwner(null);
     setQueueIds(null);
@@ -287,7 +376,7 @@ export default function ProjectDetailPage() {
     if (!confirm(`Delete "${project.name}" and all its owner records? This can't be undone.`)) return;
     try {
       await deleteProject(project.id);
-      navigate('/');
+      navigate('/projects');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not delete this project.');
     }
@@ -347,7 +436,7 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <Link to="/" className="mb-4 inline-flex items-center gap-1 text-sm text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200">
+      <Link to="/projects" className="mb-4 inline-flex items-center gap-1 text-sm text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200">
         ← All projects
       </Link>
 
@@ -546,6 +635,13 @@ export default function ProjectDetailPage() {
             Start calling ({callQueue.length})
           </button>
           <button
+            onClick={handleExport}
+            className="rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+            title={selectedCount > 0 ? 'Export the selected owners to Excel' : 'Export the owners shown to Excel'}
+          >
+            Export{selectedCount > 0 ? ` (${selectedCount})` : ''}
+          </button>
+          <button
             onClick={() => setShowImport(true)}
             className="rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
           >
@@ -572,10 +668,66 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-stone-200 dark:border-stone-800">
+      {selectedCount > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm dark:border-amber-800 dark:bg-amber-900/20">
+          <span className="font-medium text-stone-800 dark:text-stone-100">{selectedCount} selected</span>
+          <select
+            disabled={bulkBusy}
+            value=""
+            onChange={(e) => {
+              if (e.target.value) runBulk({ status: e.target.value as OwnerStatus });
+            }}
+            className="rounded-md border border-stone-300 bg-white px-2 py-1 text-sm dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+          >
+            <option value="">Set status…</option>
+            {STATUS_ORDER.map((st) => (
+              <option key={st} value={st}>
+                {STATUS_LABELS[st]}
+              </option>
+            ))}
+          </select>
+          <button
+            disabled={bulkBusy}
+            onClick={() => setBulkDatePicker(true)}
+            className="rounded-md border border-stone-300 bg-white px-2 py-1 text-sm hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+          >
+            Set next contact…
+          </button>
+          <button
+            disabled={bulkBusy}
+            onClick={() => runBulk({ do_not_contact: true })}
+            className="rounded-md border border-stone-300 bg-white px-2 py-1 text-sm hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+          >
+            Mark do-not-contact
+          </button>
+          <button
+            disabled={bulkBusy}
+            onClick={handleBulkDelete}
+            className="rounded-md border border-rose-300 bg-white px-2 py-1 text-sm text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:bg-stone-950"
+          >
+            Delete
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="ml-auto text-sm font-medium text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
+      <div className="hidden overflow-x-auto rounded-lg border border-stone-200 dark:border-stone-800 md:block">
         <table className="w-full text-left text-sm">
           <thead className="bg-stone-50 text-xs uppercase text-stone-500 dark:bg-stone-800 dark:text-stone-400">
             <tr>
+              <th className="w-8 px-3 py-2">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={toggleSelectAllVisible}
+                  aria-label="Select all shown"
+                />
+              </th>
               <SortableHeader sortKeyValue="name" activeKey={sortKey} dir={sortDir} onToggle={toggleSort}>
                 Name
               </SortableHeader>
@@ -610,6 +762,14 @@ export default function ProjectDetailPage() {
                 onClick={() => setSelectedOwner(o)}
                 className="cursor-pointer text-stone-700 hover:bg-stone-50 dark:text-stone-300 dark:hover:bg-stone-800/60"
               >
+                <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(o.id)}
+                    onChange={() => toggleSelected(o.id)}
+                    aria-label={`Select ${o.name}`}
+                  />
+                </td>
                 <td className="px-4 py-2 font-medium text-stone-900 dark:text-stone-100">{o.name}</td>
                 <td className="px-4 py-2">{formatAcres(o.nma)}</td>
                 <td className="px-4 py-2">{formatInterest(o.interest_decimal)}</td>
@@ -673,6 +833,90 @@ export default function ProjectDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Phones: the wide table doesn't fit, so show one card per owner. */}
+      <div className="space-y-2 md:hidden">
+        {filteredOwners.map((o) => {
+          const urgency = nextContactUrgency(o.next_contact_date, todayDateString());
+          const callable = usablePhones(o)[0];
+          return (
+            <div
+              key={o.id}
+              onClick={() => setSelectedOwner(o)}
+              className="flex items-start gap-3 rounded-lg border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-900"
+            >
+              <input
+                type="checkbox"
+                checked={selectedIds.has(o.id)}
+                onClick={(e) => e.stopPropagation()}
+                onChange={() => toggleSelected(o.id)}
+                aria-label={`Select ${o.name}`}
+                className="mt-1"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate font-medium text-stone-900 dark:text-stone-100">{o.name}</span>
+                  {o.do_not_contact && (
+                    <span className="rounded bg-rose-100 px-1 text-[10px] font-semibold uppercase text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
+                      DNC
+                    </span>
+                  )}
+                </div>
+                <div className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
+                  {formatAcres(o.nma)} NMA · {formatInterest(o.interest_decimal)}
+                </div>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[o.status]}`}>
+                    {STATUS_LABELS[o.status]}
+                  </span>
+                  {o.next_contact_date && (
+                    <span
+                      className={`text-xs ${
+                        urgency === 'overdue'
+                          ? 'font-medium text-rose-600 dark:text-rose-400'
+                          : urgency === 'today'
+                            ? 'font-medium text-amber-600 dark:text-amber-400'
+                            : 'text-stone-500 dark:text-stone-400'
+                      }`}
+                    >
+                      Next: {formatDateOnly(o.next_contact_date)}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {callable && (
+                <a
+                  href={telHref(callable)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="shrink-0 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white"
+                >
+                  Call
+                </a>
+              )}
+            </div>
+          );
+        })}
+        {filteredOwners.length === 0 && (
+          <div className="p-6 text-center text-sm text-stone-400">
+            {owners.length === 0 ? 'No owners yet.' : 'No owners match your filters.'}
+          </div>
+        )}
+      </div>
+
+      {bulkDatePicker && (
+        <DatePickerModal
+          value={null}
+          onSelect={(date) => {
+            setBulkDatePicker(false);
+            runBulk({ next_contact_date: date });
+          }}
+          onClear={() => {
+            setBulkDatePicker(false);
+            runBulk({ next_contact_date: null });
+          }}
+          onClose={() => setBulkDatePicker(false)}
+        />
+      )}
 
       {showEdit && <ProjectFormModal project={project} onClose={() => setShowEdit(false)} onSubmit={handleEditSubmit} />}
 
