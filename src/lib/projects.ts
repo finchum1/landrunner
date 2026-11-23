@@ -12,6 +12,8 @@ export interface ProjectInput {
   notes: string | null;
   operator_name?: string | null;
   offer_valid_days?: number;
+  hourly_rate?: number | null;
+  mileage_rate?: number | null;
 }
 
 export async function fetchProjects(): Promise<Project[]> {

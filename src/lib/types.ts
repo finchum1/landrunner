@@ -74,6 +74,9 @@ export interface Project {
   operator_name: string | null;
   // Days an offer stays open after receipt (offer letter wording).
   offer_valid_days: number;
+  // Billing rates for this prospect (hours / mileage), in dollars.
+  hourly_rate: number | null;
+  mileage_rate: number | null;
   is_archived: boolean;
   created_at: string;
   updated_at: string;

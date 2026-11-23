@@ -6,6 +6,7 @@ import DashboardPage from './pages/DashboardPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import ReportPage from './pages/ReportPage';
+import BillingPage from './pages/BillingPage';
 
 export default function App() {
   const { session, loading } = useSession();
@@ -30,6 +31,7 @@ export default function App() {
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/projects/:id" element={<ProjectDetailPage />} />
             <Route path="/projects/:id/report" element={<ReportPage />} />
+            <Route path="/projects/:id/billing" element={<BillingPage />} />
           </Routes>
         </main>
       </div>

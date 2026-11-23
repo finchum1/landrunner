@@ -467,6 +467,12 @@ export default function ProjectDetailPage() {
           >
             Client report
           </Link>
+          <Link
+            to={`/projects/${project.id}/billing`}
+            className="rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+          >
+            Billing
+          </Link>
           <button
             onClick={() => setShowEdit(true)}
             className="rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
