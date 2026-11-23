@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ADDRESS_PATTERNS,
   EMAIL_PATTERNS,
@@ -16,7 +16,9 @@ import {
   parseSpreadsheetRaw,
   type RawRow,
 } from '../lib/importSheet';
-import { bulkCreateOwners, type OwnerInput } from '../lib/owners';
+import { bulkCreateOwners, bulkUpdateOwners, fetchOwners, type OwnerInput } from '../lib/owners';
+import { planReimport, type ReimportMode } from '../lib/reimport';
+import type { MineralOwner } from '../lib/types';
 
 export default function ImportOwnersModal({
   projectId,
@@ -42,7 +44,23 @@ export default function ImportOwnersModal({
 
   const [error, setError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
+  const [result, setResult] = useState<{
+    imported: number;
+    updated: number;
+    unchanged: number;
+    ambiguous: number;
+    skipped: number;
+  } | null>(null);
+  const [existing, setExisting] = useState<MineralOwner[]>([]);
+  const [mode, setMode] = useState<ReimportMode>('fill');
+
+  // Owners already in the project, so a re-upload can update them instead of
+  // duplicating them.
+  useEffect(() => {
+    fetchOwners(projectId)
+      .then(setExisting)
+      .catch(() => {});
+  }, [projectId]);
 
   const headers = rawRows ? rawRows[headerRowIndex].map((h) => String(h).trim()) : [];
   const dataRows = rawRows ? rawRows.slice(headerRowIndex + 1) : [];
@@ -84,6 +102,33 @@ export default function ImportOwnersModal({
     setPickingHeaderRow(false);
   }
 
+  // The sheet's rows as owner inputs (blank names and TOTAL rows dropped).
+  const parsed = useMemo(() => {
+    const rows: OwnerInput[] = [];
+    let skipped = 0;
+    if (!rawRows || nameCol === -1) return { rows, skipped };
+    for (const row of dataRows) {
+      const name = cellToString(row[nameCol]);
+      if (!name || isTotalRow(name)) {
+        skipped += 1;
+        continue;
+      }
+      rows.push({
+        name,
+        nma: nmaCol !== -1 ? parseNma(row[nmaCol]) : 0,
+        interest_decimal: interestCol !== -1 ? parseInterest(row[interestCol]) : null,
+        phone: phoneCol !== -1 ? cellToString(row[phoneCol]) || null : null,
+        email: emailCol !== -1 ? cellToString(row[emailCol]) || null : null,
+        address: addressCol !== -1 ? cellToString(row[addressCol]) || null : null,
+        notes: notesCol !== -1 ? cellToString(row[notesCol]) || null : null,
+      });
+    }
+    return { rows, skipped };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawRows, headerRowIndex, nameCol, nmaCol, interestCol, phoneCol, emailCol, addressCol, notesCol]);
+
+  const plan = useMemo(() => planReimport(existing, parsed.rows, mode), [existing, parsed.rows, mode]);
+
   async function handleImport() {
     if (!rawRows || nameCol === -1) {
       setError('Choose which column holds the owner name.');
@@ -92,26 +137,15 @@ export default function ImportOwnersModal({
     setImporting(true);
     setError(null);
     try {
-      const rows: OwnerInput[] = [];
-      let skipped = 0;
-      for (const row of dataRows) {
-        const name = cellToString(row[nameCol]);
-        if (!name || isTotalRow(name)) {
-          skipped += 1;
-          continue;
-        }
-        rows.push({
-          name,
-          nma: nmaCol !== -1 ? parseNma(row[nmaCol]) : 0,
-          interest_decimal: interestCol !== -1 ? parseInterest(row[interestCol]) : null,
-          phone: phoneCol !== -1 ? cellToString(row[phoneCol]) || null : null,
-          email: emailCol !== -1 ? cellToString(row[emailCol]) || null : null,
-          address: addressCol !== -1 ? cellToString(row[addressCol]) || null : null,
-          notes: notesCol !== -1 ? cellToString(row[notesCol]) || null : null,
-        });
-      }
-      const imported = await bulkCreateOwners(projectId, rows);
-      setResult({ imported, skipped });
+      const imported = await bulkCreateOwners(projectId, plan.toInsert);
+      const updated = await bulkUpdateOwners(plan.toUpdate);
+      setResult({
+        imported,
+        updated,
+        unchanged: plan.skipped,
+        ambiguous: plan.ambiguous,
+        skipped: parsed.skipped,
+      });
       onImported();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong importing this file.');
@@ -206,6 +240,40 @@ export default function ImportOwnersModal({
               {colSelect(addressCol, setAddressCol, 'Address column')}
             </div>
 
+            {existing.length > 0 && (
+              <div className="mt-4 rounded-md border border-stone-200 p-3 dark:border-stone-800">
+                <div className="mb-2 text-sm font-medium text-stone-700 dark:text-stone-300">
+                  This project already has {existing.length} owners. Owners are matched by name — what should
+                  happen to ones already here?
+                </div>
+                {(
+                  [
+                    ['fill', 'Fill in blanks only', 'Adds missing phone, email, address, NMA. Never overwrites what you have; a different phone is kept as an extra number.'],
+                    ['overwrite', 'Overwrite with the file', "Replaces existing values with the file's (blank cells in the file never erase anything)."],
+                    ['skip', 'Only add new owners', 'Leaves every existing owner exactly as is.'],
+                  ] as [ReimportMode, string, string][]
+                ).map(([value, label, hint]) => (
+                  <label key={value} className="mb-1.5 flex cursor-pointer items-start gap-2 text-sm">
+                    <input type="radio" name="reimport-mode" checked={mode === value} onChange={() => setMode(value)} className="mt-1" />
+                    <span>
+                      <span className="font-medium text-stone-800 dark:text-stone-200">{label}</span>
+                      <span className="block text-xs text-stone-500 dark:text-stone-400">{hint}</span>
+                    </span>
+                  </label>
+                ))}
+                <div className="mt-2 text-sm text-stone-600 dark:text-stone-300">
+                  Will add <strong>{plan.toInsert.length}</strong> new, update <strong>{plan.toUpdate.length}</strong>
+                  , leave <strong>{plan.skipped}</strong> unchanged
+                  {plan.ambiguous > 0 && (
+                    <>
+                      , and skip <strong>{plan.ambiguous}</strong> with duplicate names
+                    </>
+                  )}
+                  .
+                </div>
+              </div>
+            )}
+
             {dataRows.length > 0 && (
               <div className="mt-4 overflow-x-auto rounded-md border border-stone-200 dark:border-stone-800">
                 <table className="w-full text-left text-sm">
@@ -240,7 +308,10 @@ export default function ImportOwnersModal({
 
         {result && (
           <div className="rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
-            Imported {result.imported} owner{result.imported === 1 ? '' : 's'}.
+            Added {result.imported} new owner{result.imported === 1 ? '' : 's'}
+            {result.updated > 0 && `, updated ${result.updated}`}
+            {result.unchanged > 0 && `, ${result.unchanged} unchanged`}
+            {result.ambiguous > 0 && `, skipped ${result.ambiguous} with duplicate names`}.
             {result.skipped > 0 &&
               ` Skipped ${result.skipped} row${result.skipped === 1 ? '' : 's'} with no name (including any TOTAL row).`}
           </div>
@@ -265,7 +336,11 @@ export default function ImportOwnersModal({
               disabled={importing}
               className="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60"
             >
-              {importing ? 'Importing…' : `Import ${dataRows.length} row${dataRows.length === 1 ? '' : 's'}`}
+              {importing
+                ? 'Importing…'
+                : existing.length > 0
+                  ? 'Import'
+                  : `Import ${dataRows.length} row${dataRows.length === 1 ? '' : 's'}`}
             </button>
           )}
         </div>

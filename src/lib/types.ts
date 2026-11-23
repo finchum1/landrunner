@@ -103,14 +103,27 @@ export interface MineralOwner {
   notes: string | null;
   last_contacted_at: string | null;
   next_contact_date: string | null;
+  // Additional numbers found while researching the owner. `wrong` marks a
+  // number that turned out to be bad, so it's skipped but kept as a record.
+  extra_phones: ExtraPhone[];
+  // The main `phone` turned out to be wrong (wrong person / disconnected).
+  phone_wrong: boolean;
+  do_not_contact: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface ExtraPhone {
+  label: string;
+  number: string;
+  wrong: boolean;
 }
 
 export interface OwnerActivity {
   id: string;
   owner_id: string;
   note: string;
+  outcome: string | null;
   created_at: string;
 }
 

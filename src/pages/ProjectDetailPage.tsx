@@ -29,6 +29,18 @@ import AddOwnerModal from '../components/AddOwnerModal';
 import ImportOwnersModal from '../components/ImportOwnersModal';
 import OwnerDrawer from '../components/OwnerDrawer';
 import StatusSelect from '../components/StatusSelect';
+import { buildCallQueue, hasAnyPhone } from '../lib/callQueue';
+
+type ContactFilter = 'all' | 'no_phone' | 'no_email' | 'has_phone' | 'wrong_phone' | 'dnc';
+
+const HIDE_ZERO_KEY = 'landrunnerHideZeroNma';
+function readHideZero(): boolean {
+  try {
+    return localStorage.getItem(HIDE_ZERO_KEY) !== '0'; // on unless explicitly turned off
+  } catch {
+    return true;
+  }
+}
 
 type SortKey =
   | 'name'
@@ -118,6 +130,11 @@ export default function ProjectDetailPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<OwnerStatus | 'all'>('all');
   const [showFollowUpsOnly, setShowFollowUpsOnly] = useState(false);
+  const [contactFilter, setContactFilter] = useState<ContactFilter>('all');
+  const [hideZeroNma, setHideZeroNma] = useState(readHideZero);
+  // Snapshot of owner ids being worked through in call-queue mode (null = off).
+  const [queueIds, setQueueIds] = useState<string[] | null>(null);
+  const [queueNotice, setQueueNotice] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('nma');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -179,17 +196,41 @@ export default function ProjectDetailPage() {
     return owners.filter((o) => o.next_contact_date && o.next_contact_date <= today).length;
   }, [owners]);
 
+  const zeroNmaCount = useMemo(() => owners.filter((o) => !(o.nma > 0)).length, [owners]);
+
+  const callQueue = useMemo(
+    () => buildCallQueue(owners, { today: todayDateString(), hideZeroNma }),
+    [owners, hideZeroNma]
+  );
+
+  function toggleHideZero() {
+    setHideZeroNma((prev) => {
+      try {
+        localStorage.setItem(HIDE_ZERO_KEY, prev ? '0' : '1');
+      } catch {
+        /* not remembered */
+      }
+      return !prev;
+    });
+  }
+
   const filteredOwners = useMemo(() => {
     const today = todayDateString();
     return owners
       .filter((o) => {
+        if (hideZeroNma && !(o.nma > 0)) return false;
         if (statusFilter !== 'all' && o.status !== statusFilter) return false;
+        if (contactFilter === 'no_phone' && hasAnyPhone(o)) return false;
+        if (contactFilter === 'has_phone' && !hasAnyPhone(o)) return false;
+        if (contactFilter === 'no_email' && o.email && o.email.trim()) return false;
+        if (contactFilter === 'wrong_phone' && !o.phone_wrong) return false;
+        if (contactFilter === 'dnc' && !o.do_not_contact) return false;
         if (search.trim() && !o.name.toLowerCase().includes(search.trim().toLowerCase())) return false;
         if (showFollowUpsOnly && !(o.next_contact_date && o.next_contact_date <= today)) return false;
         return true;
       })
       .sort((a, b) => compareOwners(a, b, sortKey, sortDir));
-  }, [owners, search, statusFilter, showFollowUpsOnly, sortKey, sortDir]);
+  }, [owners, search, statusFilter, contactFilter, hideZeroNma, showFollowUpsOnly, sortKey, sortDir]);
 
   function toggleFollowUpsOnly() {
     setShowFollowUpsOnly((prev) => {
@@ -204,7 +245,26 @@ export default function ProjectDetailPage() {
     });
   }
 
-  const selectedOwnerIndex = selectedOwner ? filteredOwners.findIndex((o) => o.id === selectedOwner.id) : -1;
+  // The drawer's prev/next walks the call queue while it's running, otherwise
+  // whatever the table currently shows.
+  const navList = useMemo(() => {
+    if (!queueIds) return filteredOwners;
+    const byId = new Map(owners.map((o) => [o.id, o]));
+    return queueIds.map((qid) => byId.get(qid)).filter((o): o is MineralOwner => !!o);
+  }, [queueIds, filteredOwners, owners]);
+  const selectedOwnerIndex = selectedOwner ? navList.findIndex((o) => o.id === selectedOwner.id) : -1;
+
+  function startCalling() {
+    if (callQueue.length === 0) return;
+    setQueueNotice(null);
+    setQueueIds(callQueue.map((o) => o.id));
+    setSelectedOwner(callQueue[0]);
+  }
+
+  function closeDrawer() {
+    setSelectedOwner(null);
+    setQueueIds(null);
+  }
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -440,6 +500,30 @@ export default function ProjectDetailPage() {
               </option>
             ))}
           </select>
+          <select
+            value={contactFilter}
+            onChange={(e) => setContactFilter(e.target.value as ContactFilter)}
+            className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+            title="Find owners that still need contact info"
+          >
+            <option value="all">Any contact info</option>
+            <option value="no_phone">Missing phone</option>
+            <option value="no_email">Missing email</option>
+            <option value="has_phone">Has a phone</option>
+            <option value="wrong_phone">Wrong number</option>
+            <option value="dnc">Do not contact</option>
+          </select>
+          <button
+            onClick={toggleHideZero}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+              hideZeroNma
+                ? 'bg-stone-800 text-white hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900'
+                : 'border border-stone-300 text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800'
+            }`}
+            title="Owners with 0 net mineral acres (usually surface-only or fully conveyed)"
+          >
+            Hide 0 NMA{hideZeroNma && zeroNmaCount > 0 ? ` (${zeroNmaCount} hidden)` : ''}
+          </button>
           <button
             onClick={toggleFollowUpsOnly}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
@@ -454,6 +538,14 @@ export default function ProjectDetailPage() {
         </div>
         <div className="flex gap-2">
           <button
+            onClick={startCalling}
+            disabled={callQueue.length === 0}
+            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+            title="Work through everyone who has a phone number and is due for a call, biggest first"
+          >
+            Start calling ({callQueue.length})
+          </button>
+          <button
             onClick={() => setShowImport(true)}
             className="rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
           >
@@ -467,6 +559,12 @@ export default function ProjectDetailPage() {
           </button>
         </div>
       </div>
+
+      {queueNotice && (
+        <div className="mb-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+          {queueNotice}
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">
@@ -516,7 +614,23 @@ export default function ProjectDetailPage() {
                 <td className="px-4 py-2">{formatAcres(o.nma)}</td>
                 <td className="px-4 py-2">{formatInterest(o.interest_decimal)}</td>
                 <td className="px-4 py-2">
-                  {o.phone || <span className="text-stone-400">—</span>}
+                  {o.phone ? (
+                    <span className={o.phone_wrong ? 'text-stone-400 line-through' : ''} title={o.phone_wrong ? 'Marked as a wrong number' : undefined}>
+                      {o.phone}
+                    </span>
+                  ) : (
+                    <span className="text-stone-400">—</span>
+                  )}
+                  {o.extra_phones?.length > 0 && (
+                    <span className="ml-1 text-xs text-stone-400" title="Additional numbers on file">
+                      +{o.extra_phones.length}
+                    </span>
+                  )}
+                  {o.do_not_contact && (
+                    <span className="ml-1 rounded bg-rose-100 px-1 text-[10px] font-semibold uppercase text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
+                      DNC
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-2">
                   {o.email || <span className="text-stone-400">—</span>}
@@ -591,7 +705,7 @@ export default function ProjectDetailPage() {
         <OwnerDrawer
           key={selectedOwner.id}
           owner={selectedOwner}
-          onClose={() => setSelectedOwner(null)}
+          onClose={closeDrawer}
           onChanged={(updated) => {
             setOwners((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
             setSelectedOwner(updated);
@@ -604,11 +718,23 @@ export default function ProjectDetailPage() {
             setLatestNotes((prev) => ({ ...prev, [ownerId]: { owner_id: ownerId, note: entry.note, created_at: entry.created_at } }));
           }}
           hasPrev={selectedOwnerIndex > 0}
-          hasNext={selectedOwnerIndex !== -1 && selectedOwnerIndex < filteredOwners.length - 1}
+          hasNext={selectedOwnerIndex !== -1 && selectedOwnerIndex < navList.length - 1}
+          queueLabel={queueIds && selectedOwnerIndex !== -1 ? `${selectedOwnerIndex + 1} of ${navList.length}` : undefined}
+          onOutcomeLogged={(updated) => {
+            if (!queueIds) return;
+            // Auto-advance to the next owner still in the queue.
+            const idx = navList.findIndex((o) => o.id === updated.id);
+            const next = idx !== -1 ? navList[idx + 1] : undefined;
+            if (next) setSelectedOwner(next);
+            else {
+              setQueueNotice(`Call queue finished — you worked through ${navList.length} owner${navList.length === 1 ? '' : 's'}.`);
+              closeDrawer();
+            }
+          }}
           onNavigate={(direction) => {
             if (selectedOwnerIndex === -1) return;
             const nextIndex = direction === 'prev' ? selectedOwnerIndex - 1 : selectedOwnerIndex + 1;
-            const nextOwner = filteredOwners[nextIndex];
+            const nextOwner = navList[nextIndex];
             if (nextOwner) setSelectedOwner(nextOwner);
           }}
         />

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import type { MineralOwner, OwnerActivity, OwnerStatus } from '../lib/types';
-import { CONTACT_STATUSES, STATUS_ORDER } from '../lib/types';
+import type { ExtraPhone, MineralOwner, OwnerActivity, OwnerStatus } from '../lib/types';
+import { CONTACT_STATUSES, STATUS_LABELS, STATUS_ORDER } from '../lib/types';
 import { addActivity, deleteOwner, fetchActivity, updateOwner } from '../lib/owners';
-import { formatDateOnly, formatDateTime, formatInterest } from '../lib/format';
+import { formatDateOnly, formatDateTime, formatInterest, todayDateString } from '../lib/format';
+import { CALL_OUTCOMES, planOutcome, type CallOutcome } from '../lib/callOutcomes';
+import { usablePhones } from '../lib/callQueue';
 import { mailtoHref, smsHref, telHref } from '../lib/contact';
 import StatusSelect from './StatusSelect';
 import DatePickerModal from './DatePickerModal';
@@ -36,6 +38,8 @@ export default function OwnerDrawer({
   onNavigate,
   hasPrev,
   hasNext,
+  queueLabel,
+  onOutcomeLogged,
 }: {
   owner: MineralOwner;
   onClose: () => void;
@@ -45,6 +49,10 @@ export default function OwnerDrawer({
   onNavigate?: (direction: 'prev' | 'next') => void;
   hasPrev?: boolean;
   hasNext?: boolean;
+  // Set while working through the call queue ("3 of 47"); shown in the header.
+  queueLabel?: string;
+  // Fired after a call outcome is logged, so the queue can advance.
+  onOutcomeLogged?: (updated: MineralOwner) => void;
 }) {
   const [nma, setNma] = useState(String(owner.nma ?? ''));
   const [interestPercent, setInterestPercent] = useState(
@@ -56,6 +64,10 @@ export default function OwnerDrawer({
   const [nextContactDate, setNextContactDate] = useState(owner.next_contact_date ?? '');
   const [notes, setNotes] = useState(owner.notes ?? '');
   const [status, setStatus] = useState<OwnerStatus>(owner.status);
+  const [phoneWrong, setPhoneWrong] = useState(owner.phone_wrong);
+  const [doNotContact, setDoNotContact] = useState(owner.do_not_contact);
+  const [extraPhones, setExtraPhones] = useState<ExtraPhone[]>(owner.extra_phones ?? []);
+  const [outcome, setOutcome] = useState<CallOutcome | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -102,6 +114,65 @@ export default function OwnerDrawer({
     };
   }, [owner.id]);
 
+  const dialPhones = usablePhones({ phone, phone_wrong: phoneWrong, extra_phones: extraPhones });
+  const dialPhone = dialPhones[0] ?? '';
+
+  async function handleFlag(patch: { phone_wrong?: boolean; do_not_contact?: boolean }) {
+    setError(null);
+    try {
+      const updated = await updateOwner(owner.id, patch);
+      onChanged(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update that flag.');
+      setPhoneWrong(owner.phone_wrong);
+      setDoNotContact(owner.do_not_contact);
+    }
+  }
+
+  async function handleLogOutcome() {
+    if (!outcome) return;
+    setAddingNote(true);
+    setError(null);
+    try {
+      const plan = planOutcome(outcome, status, nextContactDate || null, todayDateString());
+      const note = newNote.trim() ? `${outcome.label} — ${newNote.trim()}` : outcome.label;
+      const entry = await addActivity(owner.id, note, outcome.label);
+      const patch: Parameters<typeof updateOwner>[1] = {
+        status: plan.status,
+        next_contact_date: plan.nextContactDate,
+        last_contacted_at: new Date().toISOString(),
+      };
+      let nextExtras = extraPhones;
+      if (plan.phoneWrong) {
+        // Flag whichever number was being dialed: the main one if it's still
+        // good, otherwise the first good extra.
+        if (phone.trim() && !phoneWrong) patch.phone_wrong = true;
+        else {
+          const idx = extraPhones.findIndex((p) => p.number.trim() && !p.wrong);
+          if (idx !== -1) {
+            nextExtras = extraPhones.map((p, i) => (i === idx ? { ...p, wrong: true } : p));
+            patch.extra_phones = nextExtras;
+          }
+        }
+      }
+      const updated = await updateOwner(owner.id, patch);
+      setActivity((prev) => [entry, ...prev]);
+      setStatus(updated.status);
+      setNextContactDate(updated.next_contact_date ?? '');
+      setPhoneWrong(updated.phone_wrong);
+      setExtraPhones(updated.extra_phones ?? []);
+      setNewNote('');
+      setOutcome(null);
+      onActivityAdded?.(owner.id, entry);
+      onChanged(updated);
+      onOutcomeLogged?.(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not log that call.');
+    } finally {
+      setAddingNote(false);
+    }
+  }
+
   async function handleStatusChange(next: OwnerStatus) {
     setStatus(next);
     setError(null);
@@ -130,6 +201,7 @@ export default function OwnerDrawer({
         phone: phone.trim() || null,
         email: email.trim() || null,
         address: address.trim() || null,
+        extra_phones: extraPhones.filter((p) => p.number.trim()).map((p) => ({ ...p, number: p.number.trim() })),
         next_contact_date: nextContactDate || null,
         notes: notes.trim() || null,
       });
@@ -142,6 +214,7 @@ export default function OwnerDrawer({
   }
 
   async function handleAddNote() {
+    if (outcome) return handleLogOutcome();
     if (!newNote.trim()) return;
     setAddingNote(true);
     setError(null);
@@ -172,7 +245,7 @@ export default function OwnerDrawer({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-y-auto rounded-xl bg-white p-6 shadow-xl dark:bg-stone-900"
+        className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-y-auto rounded-xl bg-white p-6 shadow-xl dark:bg-stone-900"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-2 flex items-center justify-between">
@@ -212,21 +285,44 @@ export default function OwnerDrawer({
         </div>
 
         <div className="mb-4">
+          {queueLabel && (
+            <div className="mb-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+              Call queue · {queueLabel}
+            </div>
+          )}
           <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">{owner.name}</h2>
           <p className="text-sm text-stone-500 dark:text-stone-400">{formatInterest(owner.interest_decimal)} interest</p>
         </div>
 
         <div className="mb-5 flex gap-2">
-          <ContactActionButton href={phone.trim() ? telHref(phone) : null} icon={PhoneIcon} label="Call" />
-          <ContactActionButton href={phone.trim() ? smsHref(phone) : null} icon={TextIcon} label="Text" />
+          <ContactActionButton href={dialPhone ? telHref(dialPhone) : null} icon={PhoneIcon} label="Call" />
+          <ContactActionButton href={dialPhone ? smsHref(dialPhone) : null} icon={TextIcon} label="Text" />
           <ContactActionButton href={email.trim() ? mailtoHref(email) : null} icon={MailIcon} label="Email" />
         </div>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div>
-            <div className="mb-4">
-              <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Status</label>
-              <StatusSelect value={status} onChange={handleStatusChange} />
+            <div className="mb-3 grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Status</label>
+                <StatusSelect value={status} onChange={handleStatusChange} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
+                  Next Contact
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowDatePicker(true)}
+                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-left text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                >
+                  {nextContactDate ? (
+                    formatDateOnly(nextContactDate)
+                  ) : (
+                    <span className="text-stone-400">Set a date…</span>
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-3">
@@ -255,13 +351,77 @@ export default function OwnerDrawer({
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Phone</label>
+                <div className="mb-1 flex items-center justify-between">
+                  <label className="text-sm font-medium text-stone-700 dark:text-stone-300">Phone</label>
+                  {phone.trim() && (
+                    <label className="flex items-center gap-1 text-xs text-stone-500 dark:text-stone-400">
+                      <input
+                        type="checkbox"
+                        checked={phoneWrong}
+                        onChange={(e) => {
+                          setPhoneWrong(e.target.checked);
+                          handleFlag({ phone_wrong: e.target.checked });
+                        }}
+                      />
+                      Wrong number
+                    </label>
+                  )}
+                </div>
                 <input
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="(555) 555-5555"
-                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                  className={`w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100 ${
+                    phoneWrong ? 'line-through opacity-60' : ''
+                  }`}
                 />
+                {extraPhones.map((p, i) => (
+                  <div key={i} className="mt-1.5 flex items-center gap-1.5">
+                    <input
+                      value={p.label}
+                      onChange={(e) =>
+                        setExtraPhones((prev) => prev.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))
+                      }
+                      placeholder="Label"
+                      className="w-20 rounded-md border border-stone-300 bg-white px-2 py-1.5 text-xs text-stone-900 focus:border-amber-500 focus:outline-none dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                    />
+                    <input
+                      value={p.number}
+                      onChange={(e) =>
+                        setExtraPhones((prev) => prev.map((x, j) => (j === i ? { ...x, number: e.target.value } : x)))
+                      }
+                      placeholder="Number"
+                      className={`min-w-0 flex-1 rounded-md border border-stone-300 bg-white px-2 py-1.5 text-sm text-stone-900 focus:border-amber-500 focus:outline-none dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100 ${
+                        p.wrong ? 'line-through opacity-60' : ''
+                      }`}
+                    />
+                    <label className="flex items-center gap-1 text-xs text-stone-500 dark:text-stone-400" title="Mark this number as wrong">
+                      <input
+                        type="checkbox"
+                        checked={p.wrong}
+                        onChange={(e) =>
+                          setExtraPhones((prev) => prev.map((x, j) => (j === i ? { ...x, wrong: e.target.checked } : x)))
+                        }
+                      />
+                      Bad
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setExtraPhones((prev) => prev.filter((_, j) => j !== i))}
+                      className="px-1 text-stone-400 hover:text-rose-500"
+                      aria-label="Remove number"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setExtraPhones((prev) => [...prev, { label: '', number: '', wrong: false }])}
+                  className="mt-1.5 text-xs font-medium text-amber-700 hover:underline dark:text-amber-400"
+                >
+                  + Add another number
+                </button>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Email</label>
@@ -280,31 +440,18 @@ export default function OwnerDrawer({
                   className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
-                  Next Contact
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setShowDatePicker(true)}
-                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-left text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
-                >
-                  {nextContactDate ? (
-                    formatDateOnly(nextContactDate)
-                  ) : (
-                    <span className="text-stone-400">Set a date…</span>
-                  )}
-                </button>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Notes</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={2}
-                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+              <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+                <input
+                  type="checkbox"
+                  checked={doNotContact}
+                  onChange={(e) => {
+                    setDoNotContact(e.target.checked);
+                    handleFlag({ do_not_contact: e.target.checked });
+                  }}
                 />
-              </div>
+                Do not contact
+                <span className="text-xs text-stone-400">(kept out of the call queue)</span>
+              </label>
               <button
                 onClick={handleSaveDetails}
                 disabled={saving}
@@ -325,6 +472,39 @@ export default function OwnerDrawer({
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
               Call log
             </div>
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {CALL_OUTCOMES.map((o) => (
+                <button
+                  key={o.key}
+                  type="button"
+                  onClick={() => setOutcome((prev) => (prev?.key === o.key ? null : o))}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                    outcome?.key === o.key
+                      ? 'border-amber-600 bg-amber-600 text-white'
+                      : 'border-stone-300 text-stone-600 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800'
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            {outcome && (() => {
+              const plan = planOutcome(outcome, status, nextContactDate || null, todayDateString());
+              const bits = [
+                plan.status !== status ? `status → ${STATUS_LABELS[plan.status]}` : null,
+                plan.nextContactDate !== (nextContactDate || null)
+                  ? plan.nextContactDate
+                    ? `follow up ${formatDateOnly(plan.nextContactDate)}`
+                    : 'clear follow-up'
+                  : null,
+                plan.phoneWrong ? 'flag number as wrong' : null,
+              ].filter(Boolean);
+              return (
+                <p className="mb-2 text-xs text-stone-500 dark:text-stone-400">
+                  {bits.length ? `Will set: ${bits.join(' · ')}` : 'No status or date change.'}
+                </p>
+              );
+            })()}
             <div className="mb-3 flex gap-2">
               <input
                 value={newNote}
@@ -332,19 +512,19 @@ export default function OwnerDrawer({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleAddNote();
                 }}
-                placeholder="Log a call or note…"
+                placeholder={outcome ? 'Add a note (optional)…' : 'Log a call or note…'}
                 className="flex-1 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
               />
               <button
                 onClick={handleAddNote}
-                disabled={addingNote || !newNote.trim()}
+                disabled={addingNote || (!outcome && !newNote.trim())}
                 className="rounded-md bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60"
               >
                 Log
               </button>
             </div>
 
-            <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
+            <div className="max-h-44 space-y-3 overflow-y-auto pr-1">
               {loadingActivity && <p className="text-sm text-stone-400">Loading…</p>}
               {!loadingActivity && activity.length === 0 && (
                 <p className="text-sm text-stone-400">No calls logged yet.</p>
@@ -355,6 +535,16 @@ export default function OwnerDrawer({
                   <p className="mt-1 text-xs text-stone-400">{formatDateTime(a.created_at)}</p>
                 </div>
               ))}
+            </div>
+            <div className="mt-4">
+                <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Notes</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+                />
+              <p className="mt-1 text-xs text-stone-400">Saved with “Save details”.</p>
             </div>
           </div>
         </div>

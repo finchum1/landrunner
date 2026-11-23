@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { MineralOwner, OwnerActivity, OwnerStatus } from './types';
+import type { ExtraPhone, MineralOwner, OwnerActivity, OwnerStatus } from './types';
 
 export async function fetchOwners(projectId: string): Promise<MineralOwner[]> {
   const { data, error } = await supabase
@@ -58,6 +58,9 @@ export async function updateOwner(
       notes: string | null;
       last_contacted_at: string | null;
       next_contact_date: string | null;
+      extra_phones: ExtraPhone[];
+      phone_wrong: boolean;
+      do_not_contact: boolean;
     }
   >
 ): Promise<MineralOwner> {
@@ -81,10 +84,14 @@ export async function fetchActivity(ownerId: string): Promise<OwnerActivity[]> {
   return data ?? [];
 }
 
-export async function addActivity(ownerId: string, note: string): Promise<OwnerActivity> {
+export async function addActivity(
+  ownerId: string,
+  note: string,
+  outcome: string | null = null
+): Promise<OwnerActivity> {
   const { data, error } = await supabase
     .from('owner_activity')
-    .insert({ owner_id: ownerId, note })
+    .insert({ owner_id: ownerId, note, outcome })
     .select()
     .single();
   if (error) throw error;
@@ -107,4 +114,18 @@ export async function fetchLatestActivityByProject(projectId: string): Promise<L
     .eq('project_id', projectId);
   if (error) throw error;
   return data ?? [];
+}
+
+// Apply a batch of updates (re-import) a few at a time so a big sheet doesn't
+// fire hundreds of simultaneous requests.
+export async function bulkUpdateOwners(
+  updates: { id: string; patch: Parameters<typeof updateOwner>[1] }[]
+): Promise<number> {
+  let done = 0;
+  for (let i = 0; i < updates.length; i += 8) {
+    const chunk = updates.slice(i, i + 8);
+    await Promise.all(chunk.map((u) => updateOwner(u.id, u.patch)));
+    done += chunk.length;
+  }
+  return done;
 }
