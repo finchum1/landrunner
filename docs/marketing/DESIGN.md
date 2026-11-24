@@ -1,3 +1,5 @@
+> **Update 2026-11-24:** the "Section Log" chart (the SVG well-log strip and its phone strip) was removed at Terrence's request. The site now shows real screenshots of the app (sticky, changing as you scroll on desktop; one phone-layout screenshot per stage on phones). The log-paper grid bands, ruled boxes, Big Shoulders Display + Barlow type, amber highlighter and dark/light themes below still apply; anything below about the Section Log SVG, its pattern fills and curves is historical.
+
 ---
 name: JillSpoon Leasing (placeholder name)
 description: A lease project drawn as a well log, on pale log paper with ink rules and one amber highlighter.

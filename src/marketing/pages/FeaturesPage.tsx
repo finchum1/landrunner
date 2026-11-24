@@ -78,8 +78,8 @@ export default function Features() {
 
       <section aria-label="More screens" className="border-y-[1.5px] border-ink bg-paper-2/80 py-16 lg:py-24">
         <div className="mx-auto max-w-[72rem] space-y-14 px-5 sm:px-8">
-          <Exhibit src="/shots/dashboard.webp" alt="Dashboard of calls due today and follow-ups across projects" title="Dashboard: what’s due, across every project" />
-          <Exhibit src="/shots/billing.webp" alt="Billing page: hours, mileage and expenses totalled into an invoice" title="Billing: hours, mileage and expenses to an invoice" />
+          <Exhibit src="/shots/d-dashboard.webp" phoneSrc="/shots/m-dashboard.webp" alt="Dashboard of calls due today and follow-ups across projects" title="Dashboard: what’s due, across every project" />
+          <Exhibit src="/shots/d-billing.webp" phoneSrc="/shots/m-billing.webp" alt="Billing page: hours, mileage and expenses totalled into an invoice" title="Billing: hours, mileage and expenses to an invoice" />
         </div>
       </section>
 

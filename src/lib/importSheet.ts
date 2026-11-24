@@ -3,8 +3,12 @@ export type RawRow = RawCell[];
 
 export async function parseSpreadsheetRaw(file: File): Promise<RawRow[]> {
   const XLSX = await import('xlsx');
-  const buf = await file.arrayBuffer();
-  const workbook = XLSX.read(buf, { type: 'array' });
+  // CSVs are decoded as UTF-8 text first: letting SheetJS guess the code page
+  // garbles accented names and em dashes (e.g. "Villareal", "—") in files
+  // saved without a byte-order mark.
+  const workbook = /\.csv$/i.test(file.name)
+    ? XLSX.read(await file.text(), { type: 'string' })
+    : XLSX.read(await file.arrayBuffer(), { type: 'array' });
   const firstSheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[firstSheetName];
   const rows: RawRow[] = XLSX.utils.sheet_to_json(sheet, {
