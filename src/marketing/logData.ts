@@ -4,13 +4,14 @@ export type LogStatus = "nc" | "att" | "con" | "off" | "neg" | "lea" | "dec" | "
 export interface LogOwner {
   name: string;
   nma: number;
+  short?: string; // label for the narrow phone strip
 }
 
 export const OWNERS: LogOwner[] = [
-  { name: "Harlan Family Trust", nma: 38.4 },
-  { name: "Mesa Verde Minerals, LLC", nma: 32.0 },
-  { name: "Estate of R. T. Calloway", nma: 24.8 },
-  { name: "Wren Creek Royalty, LP", nma: 20.0 },
+  { name: "Harlan Family Trust", short: "Harlan", nma: 38.4 },
+  { name: "Mesa Verde Minerals, LLC", short: "Mesa", nma: 32.0 },
+  { name: "Estate of R. T. Calloway", short: "Calloway", nma: 24.8 },
+  { name: "Wren Creek Royalty, LP", short: "Wren", nma: 20.0 },
   { name: "Dolores M. Aldana", nma: 16.0 },
   { name: "Thornfield Holdings", nma: 12.8 },
   { name: "J. & L. Okafor Living Trust", nma: 10.0 },

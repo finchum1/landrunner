@@ -3,11 +3,11 @@ import { OWNERS, STATUS_LABEL, STEP_STATUS, TOTAL_NMA, readout, type LogStatus }
 // The Section Log: depth is net mineral acres, each owner is an interval whose
 // thickness is their NMA, fill is their status, and two curves climb as acres
 // are reached and leased. Pure function of (step) so it is easy to test.
-function geometry(compact: boolean, bodyH: number) {
-  const W = compact ? 372 : 520;
-  const DEPTH_W = compact ? 36 : 54;
+function geometry(bodyH: number) {
+  const W = 520;
+  const DEPTH_W = 54;
   const OWNER_X = DEPTH_W;
-  const OWNER_W = compact ? 204 : 252;
+  const OWNER_W = 252;
   const CURVE_X = OWNER_X + OWNER_W;
   const CURVE_W = W - CURVE_X - 2;
   return { W, BODY_H: bodyH, DEPTH_W, OWNER_X, OWNER_W, CURVE_X, CURVE_W, yAt: (acres: number) => (acres / TOTAL_NMA) * bodyH };
@@ -32,7 +32,7 @@ function curvePath(g: Geo, statuses: LogStatus[], include: (s: LogStatus) => boo
   return pts.join(" ");
 }
 
-function Patterns({ uid }: { uid: string }) {
+export function Patterns({ uid }: { uid: string }) {
   return (
     <defs>
       <pattern id={`p-${uid}-off`} width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -66,7 +66,7 @@ function Patterns({ uid }: { uid: string }) {
   );
 }
 
-function fillFor(uid: string, kind: LogStatus) {
+export function fillFor(uid: string, kind: LogStatus) {
   return kind === "lea" ? "var(--jsl-lease)" : `url(#p-${uid}-${kind})`;
 }
 
@@ -87,8 +87,8 @@ export function LogKey({ uid }: { uid: string }) {
   );
 }
 
-export default function SectionLog({ step, compact = false, bodyH = 440, uid }: { step: number; compact?: boolean; bodyH?: number; uid: string }) {
-  const g = geometry(compact, bodyH);
+export default function SectionLog({ step, bodyH = 440, uid }: { step: number; bodyH?: number; uid: string }) {
+  const g = geometry(bodyH);
   const { W, BODY_H, DEPTH_W, OWNER_X, OWNER_W, CURVE_X, CURVE_W, yAt } = g;
   const statuses = STEP_STATUS[step] ?? STEP_STATUS[0];
   const r = readout(statuses);
@@ -198,11 +198,11 @@ export default function SectionLog({ step, compact = false, bodyH = 440, uid }: 
                 <g>
                   {statuses[i] !== "lea" && (
                     <>
-                      <rect x={OWNER_X + 5} y={y + h / 2 - 8.5} width={o.name.length * (compact ? 5.9 : 6.3) + 8} height={17} fill={PAPER} opacity="0.94" />
+                      <rect x={OWNER_X + 5} y={y + h / 2 - 8.5} width={o.name.length * 6.3 + 8} height={17} fill={PAPER} opacity="0.94" />
                       <rect x={CURVE_X - 7 - (o.nma.toFixed(1).length * 7 + 6)} y={y + h / 2 - 8.5} width={o.nma.toFixed(1).length * 7 + 8} height={17} fill={PAPER} opacity="0.94" />
                     </>
                   )}
-                  <text x={OWNER_X + 8} y={y + h / 2 + 4.2} fontSize={compact ? 12.5 : 13.5} className="font-body" fontWeight="600" fill={statuses[i] === "lea" ? "#ffffff" : "var(--jsl-ink)"}>
+                  <text x={OWNER_X + 8} y={y + h / 2 + 4.2} fontSize={13.5} className="font-body" fontWeight="600" fill={statuses[i] === "lea" ? "#ffffff" : "var(--jsl-ink)"}>
                     {o.name}
                   </text>
                   <text x={CURVE_X - 7} y={y + h / 2 + 4} textAnchor="end" fontSize="11.5" className="num" fill={statuses[i] === "lea" ? "#ffffff" : "var(--jsl-ink)"}>

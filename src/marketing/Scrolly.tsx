@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import SectionLog, { LogKey } from "./SectionLog";
+import SectionStrip from "./SectionStrip";
 
 const STEPS = [
   {
@@ -49,6 +50,40 @@ const STEPS = [
   },
 ] as const;
 
+// Phone: each stage is its own card with the log strip right above its words.
+// The strip starts at the previous stage and moves to this one as the card
+// scrolls into view, so the change and the explanation are on screen together.
+function StepCard({ index, step }: { index: number; step: (typeof STEPS)[number] }) {
+  const ref = useRef<HTMLElement>(null);
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          setSeen(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.4 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <article ref={ref} id={`m-${step.id}`} className="py-7">
+      <SectionStrip step={seen ? index + 1 : index} uid={`s${index}`} />
+      <h2 className="cond mt-5 text-[2rem] font-extrabold uppercase leading-[0.98] text-balance">{step.title}</h2>
+      <div className="note prose-log mt-3 text-[1.03rem] text-ink-2">
+        {step.body.map((p) => (
+          <p key={p}>{p}</p>
+        ))}
+      </div>
+    </article>
+  );
+}
+
 export default function Scrolly() {
   const [active, setActive] = useState(0); // 0 = hero, 1..5 = steps
   const refs = useRef<(HTMLElement | null)[]>([]);
@@ -75,8 +110,6 @@ export default function Scrolly() {
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();
   }, []);
-
-  const mobileStep = STEPS[Math.max(active, 1) - 1];
 
   return (
     <section aria-label="How a lease project runs" className="log-paper border-b-[1.5px] border-ink">
@@ -107,6 +140,13 @@ export default function Scrolly() {
                 </a>
               </div>
               <p className="mt-5 hidden text-[0.95rem] text-ink-2 lg:block">The log beside this is sample data, not a real project.</p>
+              <div className="mt-6 lg:hidden">
+                <SectionStrip step={0} uid="mh" />
+                <p className="mt-2 text-[0.9rem] text-ink-2">Sample data, not a real project. Each owner is a band as wide as their net mineral acres.</p>
+                <div className="mt-3">
+                  <LogKey uid="mk" />
+                </div>
+              </div>
             </div>
 
             {STEPS.map((s, i) => (
@@ -129,44 +169,18 @@ export default function Scrolly() {
                 </div>
               </article>
             ))}
+
+            <div className="lg:hidden">
+              {STEPS.map((st, i) => (
+                <StepCard key={st.id} index={i} step={st} />
+              ))}
+            </div>
           </div>
 
-          {/* the log: sticky on desktop, a tabbed instrument on phones */}
-          <div id="log" className="lg:col-start-2 lg:row-start-1 lg:sticky lg:top-[5.5rem] lg:pt-3">
-            <div className="hidden lg:block">
-              <SectionLog step={active} bodyH={bodyH} uid="d" />
-            </div>
-            <div className="lg:hidden">
-              <SectionLog step={active || 1} compact bodyH={430} uid="m" />
-            </div>
-            <div className="mt-4 lg:hidden">
-              <p className="label mb-1.5 !text-ink-2">Tap a stage</p>
-              <div role="tablist" aria-label="Project stage" className="grid grid-cols-5 border-[1.5px] border-ink bg-paper">
-                {STEPS.map((s, i) => (
-                  <button
-                    key={s.id}
-                    role="tab"
-                    aria-selected={active === i + 1}
-                    onClick={() => setActive(i + 1)}
-                    className={`cond py-3 text-[1.1rem] font-bold uppercase tracking-[0.08em] ${i > 0 ? "border-l-[1.5px] border-ink" : ""} ${
-                      active === i + 1 ? "bg-ink text-paper" : "bg-paper text-ink"
-                    }`}
-                  >
-                    {s.tab}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-5 pb-8">
-                <h2 className="cond text-[1.9rem] font-bold uppercase leading-[0.98] text-balance">{mobileStep.title}</h2>
-                <div className="note prose-log mt-3 text-[1.05rem] text-ink-2">
-                  {mobileStep.body.map((p) => (
-                    <p key={p}>{p}</p>
-                  ))}
-                </div>
-              </div>
-              <LogKey uid="km" />
-            </div>
-            <div className="mt-4 hidden lg:block">
+          {/* the log: sticky beside the story on desktop (phones get the strips above) */}
+          <div id="log" className="hidden lg:col-start-2 lg:row-start-1 lg:sticky lg:top-[5.5rem] lg:block lg:pt-3">
+            <SectionLog step={active} bodyH={bodyH} uid="d" />
+            <div className="mt-4">
               <LogKey uid="kd" />
             </div>
           </div>
