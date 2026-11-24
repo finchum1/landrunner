@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-23T00:00:00Z",
+  "title": "Design System: JillSpoon Leasing (placeholder name)",
+  "extensions": {
+    "colorMeta": {
+      "log-paper": { "role": "neutral", "displayName": "Log Paper", "canonical": "#eff4f0", "tonalRamp": ["#12201f", "#3d4d4b", "#5b6c69", "#a9b9b1", "#d4dfd7", "#e2eae4", "#eff4f0", "#f8fbf9"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#12201f", "tonalRamp": ["#050a0a", "#12201f", "#1f3331", "#3d4d4b", "#5b6c69", "#8a9a97", "#b8c4c1", "#e2eae4"] },
+      "highlighter-amber": { "role": "primary", "displayName": "Highlighter Amber", "canonical": "#f2a81d", "tonalRamp": ["#4a3004", "#7a5008", "#b5760b", "#d98f12", "#f2a81d", "#ffb92f", "#ffd37a", "#fff0cf"] },
+      "curve-blue": { "role": "secondary", "displayName": "Curve Blue", "canonical": "#1d4f9e", "tonalRamp": ["#0a1d3d", "#102f60", "#1d4f9e", "#3a6cb8", "#6590cd", "#92b2de", "#c4d5ee", "#e8eff8"] },
+      "curve-green": { "role": "secondary", "displayName": "Curve Green", "canonical": "#1c8049", "tonalRamp": ["#08301b", "#0f4d2c", "#1c8049", "#3a9a63", "#68b78a", "#98d0b0", "#c7e7d6", "#e8f6ee"] },
+      "curve-red": { "role": "secondary", "displayName": "Curve Red", "canonical": "#c4352b", "tonalRamp": ["#450f0b", "#751c16", "#c4352b", "#d65a50", "#e48880", "#efb2ac", "#f7d4d1", "#fcefed"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Hero headline and page titles, condensed caps." },
+      "headline": { "displayName": "Headline", "purpose": "Section headings." },
+      "title": { "displayName": "Title", "purpose": "Sub-feature headings and button text." },
+      "body": { "displayName": "Body", "purpose": "Reading copy in Barlow." },
+      "label": { "displayName": "Label", "purpose": "Field names, instructional hints, sample-data tag." },
+      "numeral": { "displayName": "Numerals", "purpose": "Depth scale and readouts in JetBrains Mono." }
+    },
+    "shadows": [
+      { "name": "button-rest", "value": "0 8px 16px -8px rgba(18,32,31,0.5)", "purpose": "Soft ambient lift under buttons." },
+      { "name": "button-hover", "value": "0 12px 20px -8px rgba(18,32,31,0.55)", "purpose": "Hover state, with translateY(-2px)." },
+      { "name": "exhibit", "value": "0 10px 24px -12px rgba(18,32,31,0.5)", "purpose": "Screenshot figures." }
+    ],
+    "motion": [
+      { "name": "ease-out-expo", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Buttons (160ms), log fades (650ms), curve path (900ms). Disabled under prefers-reduced-motion." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Amber highlighter request action.",
+      "html": "<button class=\"ds-btn-primary\">Request early access</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;min-height:3rem;padding:.55rem 1.4rem;font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-weight:700;font-size:1.15rem;letter-spacing:.06em;text-transform:uppercase;background:var(--amber,#f2a81d);color:var(--ink,#12201f);border:1.5px solid var(--ink,#12201f);border-radius:0;box-shadow:0 8px 16px -8px rgba(18,32,31,.5);cursor:pointer;transition:transform 160ms cubic-bezier(.16,1,.3,1),box-shadow 160ms,background-color 160ms}.ds-btn-primary:hover{background:#ffb92f;transform:translateY(-2px);box-shadow:0 12px 20px -8px rgba(18,32,31,.55)}.ds-btn-primary:active{transform:translateY(1px)}.ds-btn-primary:focus-visible{outline:3px solid #1d4f9e;outline-offset:3px}"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Secondary action on paper.",
+      "html": "<button class=\"ds-btn-quiet\">Everything it does</button>",
+      "css": ".ds-btn-quiet{display:inline-flex;align-items:center;min-height:3rem;padding:.55rem 1.4rem;font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-weight:700;font-size:1.15rem;letter-spacing:.06em;text-transform:uppercase;background:#eff4f0;color:#12201f;border:1.5px solid #12201f;border-radius:0;box-shadow:0 8px 16px -8px rgba(18,32,31,.5);cursor:pointer;transition:transform 160ms cubic-bezier(.16,1,.3,1)}.ds-btn-quiet:hover{transform:translateY(-2px)}.ds-btn-quiet:focus-visible{outline:3px solid #1d4f9e;outline-offset:3px}"
+    },
+    {
+      "name": "Annotation Note",
+      "kind": "card",
+      "refersTo": "note",
+      "description": "Boxed copy set over the grid.",
+      "html": "<p class=\"ds-note\">Everything below is built and in use today.</p>",
+      "css": ".ds-note{background:#eff4f0;border:1.5px solid #12201f;padding:1.1rem 1.3rem;color:#3d4d4b;font-family:Barlow,system-ui,sans-serif;font-size:1.12rem;line-height:1.55;margin:0}"
+    },
+    {
+      "name": "Nav Cell",
+      "kind": "nav",
+      "description": "Full-height ruled link cells; last one amber.",
+      "html": "<nav class=\"ds-nav\"><a>Features</a><a>FAQ</a><a class=\"ds-cta\">Request access</a></nav>",
+      "css": ".ds-nav{display:flex;border-bottom:1.5px solid #12201f;background:#eff4f0}.ds-nav a{display:flex;align-items:center;padding:.9rem 1.5rem;border-left:1.5px solid #12201f;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:1.05rem;letter-spacing:.1em;text-transform:uppercase;color:#12201f;cursor:pointer}.ds-nav a:hover{background:#d4dfd7}.ds-nav a.ds-cta{background:#f2a81d;font-weight:700}.ds-nav a.ds-cta:hover{background:#ffb92f}"
+    },
+    {
+      "name": "Exhibit",
+      "kind": "card",
+      "description": "Screenshot figure with ink caption bar.",
+      "html": "<figure class=\"ds-exhibit\"><figcaption><span>The project</span><span class=\"ds-tag\">sample data</span></figcaption><div class=\"ds-img\"></div></figure>",
+      "css": ".ds-exhibit{margin:0;border:1.5px solid #12201f;background:#eff4f0;box-shadow:0 10px 24px -12px rgba(18,32,31,.5)}.ds-exhibit figcaption{display:flex;justify-content:space-between;padding:.4rem .75rem;background:#12201f;color:#eff4f0;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.95rem;letter-spacing:.1em;text-transform:uppercase}.ds-tag{font-weight:600;font-size:.78rem;letter-spacing:.12em;opacity:.6}.ds-img{height:120px;background:#e2eae4}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Section Log",
+    "overview": "A lease project drawn as the document the oil patch already trusts: a well log. Pale log paper, a cyan measurement grid on the hero and page-title bands only, ink-black 1.5px rules, boxed header cells, red/blue/green curve inks and one amber highlighter. Light only; square-cornered and ruled; condensed caps for structure, Barlow for reading, mono for numerals.",
+    "keyCharacteristics": [
+      "Light-only, flat paper with ink rules; structure from boxes and 1.5px lines, not radii.",
+      "One accent action color (amber); red, blue, green are data inks.",
+      "Condensed uppercase headings over calm 17px body.",
+      "Status encoded by fill pattern as well as color."
+    ],
+    "rules": [
+      { "name": "The One Highlighter Rule", "body": "Amber marks the one thing to do on a surface. Curve inks never become buttons or links.", "section": "colors" },
+      { "name": "The Grid Stays Home Rule", "body": "The cyan grid lives only on the hero field and page-title bands. Body copy goes on flat paper or in a boxed note.", "section": "colors" },
+      { "name": "The Caps Are Structural Rule", "body": "Condensed uppercase is for headings, buttons, nav cells and labels; running copy is never uppercase.", "section": "typography" },
+      { "name": "The Ruled Edge Rule", "body": "A surface is separated by a 1.5px ink rule first; a soft shadow is only added to clickable buttons and screenshot exhibits.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use radius 0 and the 1.5px ink rule for every box.",
+      "Do keep the grid to the hero and page-title bands, and put reading text on flat paper or a note.",
+      "Do make status legible without color, using a pattern fill plus a key.",
+      "Do label demo content \"sample data\".",
+      "Do use amber for exactly one primary action per view."
+    ],
+    "donts": [
+      "Don't go dark or add a dashboard-hero look; the world is daylight paper.",
+      "Don't use rounded corners or colored accent borders.",
+      "Don't use curve red, blue or green as button or link fills.",
+      "Don't set running copy in uppercase or condensed type."
+    ]
+  }
+}
