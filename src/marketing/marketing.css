@@ -1,0 +1,156 @@
+/*
+  The Section Log: the public marketing site for JillSpoon Leasing, drawn as a
+  well log. Everything is scoped under .jsl so none of it touches the app.
+  Light only. Square corners, 1.5px ink rules, condensed caps for labels.
+*/
+@theme {
+  --color-paper: #eff4f0;
+  --color-paper-2: #e2eae4;
+  --color-paper-3: #d4dfd7;
+  --color-ink: #12201f;
+  --color-ink-2: #3d4d4b;
+  --color-ink-3: #5b6c69;
+  --color-cyan: #2e9aa0;
+  --color-red: #c4352b;
+  --color-blue: #1d4f9e;
+  --color-green: #1c8049;
+  --color-amber: #f2a81d;
+  --color-amber-deep: #b5760b;
+  --font-body: "Barlow", system-ui, sans-serif;
+}
+
+.jsl {
+  --grid: rgba(46, 154, 160, 0.17);
+  --grid-major: rgba(46, 154, 160, 0.36);
+  --rule: 1.5px solid #12201f;
+  background-color: #eff4f0;
+  color: #12201f;
+  font-family: "Barlow", system-ui, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+.jsl ::selection {
+  background: #f2a81d;
+  color: #12201f;
+}
+.jsl :focus-visible {
+  outline: 3px solid #1d4f9e;
+  outline-offset: 3px;
+}
+.jsl a {
+  text-underline-offset: 0.22em;
+  text-decoration-thickness: 1.5px;
+}
+.jsl input,
+.jsl textarea,
+.jsl select {
+  caret-color: #c4352b;
+}
+html {
+  scroll-padding-top: 5.5rem;
+}
+
+@layer components {
+  .jsl {
+    /* Log paper: only the hero field and page-title bands use it; reading text
+       sits on flat paper or inside a boxed .note. */
+    .log-paper {
+      background-color: #eff4f0;
+      background-image:
+        linear-gradient(to right, var(--grid-major) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid-major) 1px, transparent 1px),
+        linear-gradient(to right, var(--grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+      background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+    }
+    .note {
+      background: #eff4f0;
+      border: var(--rule);
+      padding: 1.1rem 1.3rem;
+    }
+    .cond {
+      font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    }
+    .num {
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+      font-variant-numeric: tabular-nums;
+    }
+    .cell {
+      border: var(--rule);
+      background: #eff4f0;
+    }
+    .label {
+      font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 0.78rem;
+      color: #5b6c69;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      min-height: 3rem;
+      padding: 0.55rem 1.4rem;
+      font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+      font-weight: 700;
+      font-size: 1.15rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      border: var(--rule);
+      box-shadow: 0 8px 16px -8px rgba(18, 32, 31, 0.5);
+      transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1),
+        background-color 160ms;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 20px -8px rgba(18, 32, 31, 0.55);
+    }
+    .btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 4px -2px rgba(18, 32, 31, 0.5);
+    }
+    .btn-primary {
+      background: #f2a81d;
+      color: #12201f;
+    }
+    .btn-primary:hover {
+      background: #ffb92f;
+    }
+    .btn-quiet {
+      background: #eff4f0;
+      color: #12201f;
+    }
+    .log-fade {
+      transition: opacity 650ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .log-curve {
+      transition: d 900ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .prose-log p + p {
+      margin-top: 1em;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jsl .btn,
+  .jsl .btn:hover,
+  .jsl .btn:active {
+    transition: none;
+    transform: none;
+  }
+  .jsl .log-fade,
+  .jsl .log-curve {
+    transition: none;
+  }
+}

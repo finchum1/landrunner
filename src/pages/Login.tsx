@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
+import { Link } from 'react-router-dom';
 import Logo from '../components/Logo';
 
 export default function Login() {
@@ -68,6 +69,11 @@ export default function Login() {
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
+        <p className="mt-5 text-center text-sm text-stone-500 dark:text-stone-400">
+          <Link to="/" className="font-medium text-amber-700 hover:underline dark:text-amber-500">
+            What is JillSpoon Leasing?
+          </Link>
+        </p>
       </div>
     </div>
   );
