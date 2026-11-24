@@ -41,6 +41,12 @@ const ICON_PATHS = {
       <path d="M3.5 12.2l8.5 4.7 8.5-4.7M3.5 16.2l8.5 4.7 8.5-4.7" />
     </>
   ),
+  reminders: (
+    <>
+      <path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9z" />
+      <path d="M10 20a2 2 0 0 0 4 0" />
+    </>
+  ),
   signout: <path d="M15 4h3.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H15M10 16l-4-4 4-4M6 12h10" />,
 } as const;
 
@@ -67,6 +73,7 @@ function NavIcon({ name }: { name: keyof typeof ICON_PATHS }) {
 const NAV: { to: string; label: string; icon: keyof typeof ICON_PATHS; match: (p: string) => boolean }[] = [
   { to: '/', label: 'Dashboard', icon: 'dashboard', match: (p) => p === '/' },
   { to: '/projects', label: 'Projects', icon: 'projects', match: (p) => p.startsWith('/projects') },
+  { to: '/reminders', label: 'Reminders', icon: 'reminders', match: (p) => p.startsWith('/reminders') },
 ];
 
 function NavItems({ rail, pathname, onNavigate }: { rail: boolean; pathname: string; onNavigate?: () => void }) {
