@@ -56,7 +56,7 @@ export default function Scrolly() {
 
   // Fit the sticky log to the window: chrome around the strip is ~380px.
   useEffect(() => {
-    const fit = () => setBodyH(Math.max(300, Math.min(560, Math.round(window.innerHeight - 440))));
+    const fit = () => setBodyH(Math.max(260, Math.min(560, Math.round(window.innerHeight - 414))));
     fit();
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
@@ -132,7 +132,7 @@ export default function Scrolly() {
           </div>
 
           {/* the log: sticky on desktop, a tabbed instrument on phones */}
-          <div id="log" className="lg:col-start-2 lg:row-start-1 lg:sticky lg:top-[6.4rem] lg:pt-10">
+          <div id="log" className="lg:col-start-2 lg:row-start-1 lg:sticky lg:top-[4.25rem] lg:pt-3">
             <div className="hidden lg:block">
               <SectionLog step={active} bodyH={bodyH} uid="d" />
             </div>
