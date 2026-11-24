@@ -207,7 +207,7 @@ export default function Sidebar({ email }: { email?: string }) {
         {showRail ? (
           <>
             <div className="flex shrink-0 justify-center px-2 pb-3 pt-12">
-              <Link to="/" aria-label="Landrunner home">
+              <Link to="/" aria-label="JillSpoon Leasing home">
                 <Logo iconOnly height={36} />
               </Link>
             </div>
