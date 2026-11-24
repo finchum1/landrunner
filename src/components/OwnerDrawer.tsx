@@ -11,6 +11,7 @@ import { mailtoHref, smsHref, telHref } from '../lib/contact';
 import StatusSelect from './StatusSelect';
 import DatePickerModal from './DatePickerModal';
 import ContactActionButton from './ContactActionButton';
+import OwnerFiles from './OwnerFiles';
 
 const PhoneIcon = (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -608,6 +609,7 @@ export default function OwnerDrawer({
                 })()}
               </div>
             )}
+            <OwnerFiles ownerId={owner.id} />
             <div className="mt-4">
                 <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Notes</label>
                 <textarea

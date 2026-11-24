@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { removeFilesForOwners } from './files';
 import type { ExtraPhone, MineralOwner, OwnerActivity, OwnerStatus } from './types';
 
 export async function fetchOwners(projectId: string): Promise<MineralOwner[]> {
@@ -72,6 +73,7 @@ export async function updateOwner(
 }
 
 export async function deleteOwner(id: string): Promise<void> {
+  await removeFilesForOwners([id]);
   const { error } = await supabase.from('mineral_owners').delete().eq('id', id);
   if (error) throw error;
 }
@@ -168,6 +170,7 @@ export async function bulkPatchOwners(
 
 export async function bulkDeleteOwners(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
+  await removeFilesForOwners(ids);
   const { error } = await supabase.from('mineral_owners').delete().in('id', ids);
   if (error) throw error;
 }

@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { Project } from './types';
+import { removeFilesForOwners } from './files';
 
 export interface ProjectInput {
   name: string;
@@ -38,6 +39,8 @@ export async function updateProject(id: string, input: Partial<ProjectInput> & {
 }
 
 export async function deleteProject(id: string): Promise<void> {
+  const { data: owners } = await supabase.from('mineral_owners').select('id').eq('project_id', id);
+  await removeFilesForOwners((owners ?? []).map((o) => o.id as string));
   const { error } = await supabase.from('projects').delete().eq('id', id);
   if (error) throw error;
 }
