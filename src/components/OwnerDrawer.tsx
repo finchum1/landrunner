@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { ExtraPhone, MineralOwner, OwnerActivity, OwnerStatus, ProjectOfferTerms } from '../lib/types';
-import { CONTACT_STATUSES, STATUS_LABELS, STATUS_ORDER } from '../lib/types';
+import { CONTACT_STATUSES, STATUS_COLORS, STATUS_LABELS, STATUS_ORDER } from '../lib/types';
 import { addActivity, deleteOwner, fetchActivity, updateOwner } from '../lib/owners';
-import { formatDateOnly, formatDateTime, formatInterest, todayDateString } from '../lib/format';
+import { formatAcres, formatDateOnly, formatDateTime, formatInterest, todayDateString } from '../lib/format';
 import { CALL_OUTCOMES, planOutcome, type CallOutcome } from '../lib/callOutcomes';
 import { usablePhones } from '../lib/callQueue';
 import { bonusDue } from '../lib/bonus';
@@ -12,6 +12,8 @@ import StatusSelect from './StatusSelect';
 import DatePickerModal from './DatePickerModal';
 import ContactActionButton from './ContactActionButton';
 import OwnerFiles from './OwnerFiles';
+import { callSharers } from '../lib/groupLogic';
+import { isWorkingStatus } from '../lib/callOutcomes';
 
 const PhoneIcon = (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -45,6 +47,14 @@ export default function OwnerDrawer({
   onOutcomeLogged,
   offerTerms = [],
   onOfferLetter,
+  groupName,
+  groupMembers = [],
+  onOpenOwner,
+  onLinkGroup,
+  onAddToGroup,
+  onLeaveGroup,
+  onRenameGroup,
+  onGroupOwnersUpdated,
 }: {
   owner: MineralOwner;
   onClose: () => void;
@@ -60,6 +70,15 @@ export default function OwnerDrawer({
   onOutcomeLogged?: (updated: MineralOwner) => void;
   offerTerms?: ProjectOfferTerms[];
   onOfferLetter?: () => void;
+  // Related owners (an estate and its heirs): everyone in this owner's group, including them.
+  groupName?: string | null;
+  groupMembers?: MineralOwner[];
+  onOpenOwner?: (o: MineralOwner) => void;
+  onLinkGroup?: () => void;
+  onAddToGroup?: () => void;
+  onLeaveGroup?: () => void;
+  onRenameGroup?: () => void;
+  onGroupOwnersUpdated?: (updated: MineralOwner[]) => void;
 }) {
   const [nma, setNma] = useState(String(owner.nma ?? ''));
   const [interestPercent, setInterestPercent] = useState(
@@ -75,6 +94,7 @@ export default function OwnerDrawer({
   const [doNotContact, setDoNotContact] = useState(owner.do_not_contact);
   const [extraPhones, setExtraPhones] = useState<ExtraPhone[]>(owner.extra_phones ?? []);
   const [outcome, setOutcome] = useState<CallOutcome | null>(null);
+  const [shareWithGroup, setShareWithGroup] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -121,6 +141,7 @@ export default function OwnerDrawer({
     };
   }, [owner.id]);
 
+  const sharers = callSharers(groupMembers, owner.id, isWorkingStatus);
   const dialPhones = usablePhones({ phone, phone_wrong: phoneWrong, extra_phones: extraPhones });
   const dialPhone = dialPhones[0] ?? '';
 
@@ -172,6 +193,20 @@ export default function OwnerDrawer({
         }
       }
       const updated = await updateOwner(owner.id, patch);
+      // One call covers the whole related group: log the same outcome for the
+      // others still being worked (the phone itself belongs to one owner, so a
+      // wrong number is never shared).
+      if (shareWithGroup && outcome.key !== 'wrong_number' && sharers.length > 0) {
+        const now = new Date().toISOString();
+        const shared = await Promise.all(
+          sharers.map(async (m) => {
+            const mp = planOutcome(outcome, m.status, m.next_contact_date, todayDateString());
+            await addActivity(m.id, `${note} (group call via ${owner.name})`, outcome.label);
+            return updateOwner(m.id, { status: mp.status, next_contact_date: mp.nextContactDate, last_contacted_at: now });
+          })
+        );
+        onGroupOwnersUpdated?.(shared);
+      }
       setActivity((prev) => [entry, ...prev]);
       setStatus(updated.status);
       setNextContactDate(updated.next_contact_date ?? '');
@@ -521,6 +556,15 @@ export default function OwnerDrawer({
                 </p>
               );
             })()}
+            {outcome && outcome.key !== 'wrong_number' && sharers.length > 0 && (
+              <label className="mb-2 flex items-start gap-2 text-xs text-stone-600 dark:text-stone-300">
+                <input type="checkbox" checked={shareWithGroup} onChange={(e) => setShareWithGroup(e.target.checked)} className="mt-0.5" />
+                <span>
+                  Also log this for {sharers.length} other owner{sharers.length === 1 ? '' : 's'} in {groupName ?? 'this group'}
+                  <span className="text-stone-400"> ({sharers.map((m) => m.name).join(', ')})</span>
+                </span>
+              </label>
+            )}
             <div className="mb-3 flex gap-2">
               <input
                 value={newNote}
@@ -551,6 +595,58 @@ export default function OwnerDrawer({
                   <p className="mt-1 text-xs text-stone-400">{formatDateTime(a.created_at)}</p>
                 </div>
               ))}
+            </div>
+            <div className="mt-4 rounded-md border border-stone-200 p-3 dark:border-stone-800">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Related owners</span>
+                {groupName ? (
+                  <button type="button" onClick={onAddToGroup} className="text-xs font-medium text-amber-700 hover:underline dark:text-amber-400">
+                    + Add owner
+                  </button>
+                ) : (
+                  <button type="button" onClick={onLinkGroup} className="text-xs font-medium text-amber-700 hover:underline dark:text-amber-400">
+                    Link owners…
+                  </button>
+                )}
+              </div>
+              {!groupName && (
+                <p className="text-xs text-stone-400">An estate and its heirs, a couple, one family? Link them so one call covers everyone.</p>
+              )}
+              {groupName && (
+                <>
+                  <div className="mb-1.5 flex items-center justify-between text-sm font-medium text-stone-800 dark:text-stone-200">
+                    <span className="truncate">{groupName}</span>
+                    <button type="button" onClick={onRenameGroup} className="shrink-0 text-xs font-normal text-stone-400 hover:text-stone-600">
+                      Rename
+                    </button>
+                  </div>
+                  <ul className="space-y-1">
+                    {groupMembers.map((m) => (
+                      <li key={m.id} className="flex items-center gap-2 text-sm">
+                        {m.id === owner.id ? (
+                          <span className="min-w-0 flex-1 truncate font-medium text-stone-900 dark:text-stone-100">{m.name} <span className="text-xs font-normal text-stone-400">(this owner)</span></span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onOpenOwner?.(m)}
+                            className="min-w-0 flex-1 truncate text-left text-stone-700 hover:text-amber-700 hover:underline dark:text-stone-300 dark:hover:text-amber-400"
+                          >
+                            {m.name}
+                          </button>
+                        )}
+                        <span className="shrink-0 text-xs text-stone-400">{formatAcres(m.nma)} NMA</span>
+                        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${STATUS_COLORS[m.status]}`}>{STATUS_LABELS[m.status]}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-2 flex items-center justify-between text-xs text-stone-500 dark:text-stone-400">
+                    <span>Group total {formatAcres(groupMembers.reduce((t, m) => t + m.nma, 0))} NMA</span>
+                    <button type="button" onClick={onLeaveGroup} className="text-rose-600 hover:underline dark:text-rose-400">
+                      Remove from group
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
             {offerTerms.length > 0 && (
               <div className="mt-4 rounded-md border border-stone-200 p-3 dark:border-stone-800">

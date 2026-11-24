@@ -119,10 +119,19 @@ export interface MineralOwner {
   do_not_contact: boolean;
   // Which of the project's offer tiers this owner was offered (null = default tier).
   offer_terms_id: string | null;
+  // Related owners (an estate and its heirs, a couple) share a group.
+  group_id: string | null;
   // "YYYY-MM-DD" the lease bonus was paid to this owner.
   bonus_paid_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface OwnerGroup {
+  id: string;
+  project_id: string;
+  name: string;
+  created_at: string;
 }
 
 export interface LandmanProfile {

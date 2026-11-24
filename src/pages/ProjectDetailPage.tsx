@@ -11,6 +11,9 @@ import {
   type LatestActivity,
 } from '../lib/owners';
 import { exportOwnersXlsx } from '../lib/exportOwners';
+import GroupModal from '../components/GroupModal';
+import { addOwnersToGroup, createGroup, fetchGroups, removeOwnerFromGroup, renameGroup } from '../lib/groups';
+import { groupName as groupNameOf, membersOf } from '../lib/groupLogic';
 import DatePickerModal from '../components/DatePickerModal';
 import OfferLetterModal from '../components/OfferLetterModal';
 import { bonusSummary } from '../lib/bonus';
@@ -21,7 +24,7 @@ import {
   updateOfferTerms,
   type OfferTermsInput,
 } from '../lib/offerTerms';
-import type { MineralOwner, OwnerStatus, Project, ProjectOfferTerms } from '../lib/types';
+import type { MineralOwner, OwnerGroup, OwnerStatus, Project, ProjectOfferTerms } from '../lib/types';
 import { CONTACT_STATUSES, STATUS_COLORS, STATUS_LABELS, STATUS_ORDER } from '../lib/types';
 import {
   formatAcres,
@@ -138,6 +141,9 @@ export default function ProjectDetailPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   // Owners an offer letter is being prepared for (null = dialog closed).
   const [letterTargets, setLetterTargets] = useState<MineralOwner[] | null>(null);
+  // Related-owner groups, and the link/add dialog (null = closed).
+  const [groups, setGroups] = useState<OwnerGroup[]>([]);
+  const [groupModal, setGroupModal] = useState<{ groupId: string | null; preselected: string[] } | null>(null);
 
   const [project, setProject] = useState<Project | null>(null);
   const [owners, setOwners] = useState<MineralOwner[]>([]);
@@ -168,16 +174,18 @@ export default function ProjectDetailPage() {
     if (!id) return;
     setError(null);
     try {
-      const [{ data: projectRow, error: projectError }, ownerRows, latestActivityRows, termsRows] =
+      const [{ data: projectRow, error: projectError }, ownerRows, latestActivityRows, termsRows, groupRows] =
         await Promise.all([
           supabase.from('projects').select('*').eq('id', id).single(),
           fetchOwners(id),
           fetchLatestActivityByProject(id),
           fetchOfferTerms(id),
+          fetchGroups(id),
         ]);
       if (projectError) throw projectError;
       setProject(projectRow);
       setOwners(ownerRows);
+      setGroups(groupRows);
       setLatestNotes(Object.fromEntries(latestActivityRows.map((a) => [a.owner_id, a])));
       setOfferTerms(termsRows);
     } catch (err) {
@@ -256,12 +264,15 @@ export default function ProjectDetailPage() {
         if (contactFilter === 'no_email' && o.email && o.email.trim()) return false;
         if (contactFilter === 'wrong_phone' && !o.phone_wrong) return false;
         if (contactFilter === 'dnc' && !o.do_not_contact) return false;
-        if (search.trim() && !o.name.toLowerCase().includes(search.trim().toLowerCase())) return false;
+        if (search.trim()) {
+          const q = search.trim().toLowerCase();
+          if (!o.name.toLowerCase().includes(q) && !(groupNameOf(groups, o.group_id) ?? '').toLowerCase().includes(q)) return false;
+        }
         if (showFollowUpsOnly && !(o.next_contact_date && o.next_contact_date <= today)) return false;
         return true;
       })
       .sort((a, b) => compareOwners(a, b, sortKey, sortDir));
-  }, [owners, search, statusFilter, contactFilter, hideZeroNma, showFollowUpsOnly, sortKey, sortDir]);
+  }, [owners, groups, search, statusFilter, contactFilter, hideZeroNma, showFollowUpsOnly, sortKey, sortDir]);
 
   function toggleFollowUpsOnly() {
     setShowFollowUpsOnly((prev) => {
@@ -350,9 +361,56 @@ export default function ProjectDetailPage() {
     // Export the selection if there is one, otherwise whatever the table shows.
     const rows = selectedCount > 0 ? owners.filter((o) => selectedIds.has(o.id)) : filteredOwners;
     try {
-      await exportOwnersXlsx(project, rows, latestNotes);
+      await exportOwnersXlsx(project, rows, latestNotes, groups);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create the export.');
+    }
+  }
+
+  // Merge owners returned from the database into state (and the open drawer).
+  function mergeOwners(updated: MineralOwner[]) {
+    if (updated.length === 0) return;
+    const byId = new Map(updated.map((o) => [o.id, o]));
+    setOwners((prev) => prev.map((o) => byId.get(o.id) ?? o));
+    setSelectedOwner((cur) => (cur ? byId.get(cur.id) ?? cur : cur));
+  }
+
+  async function handleGroupSave(name: string, ownerIds: string[]) {
+    if (!project || !groupModal) return;
+    if (groupModal.groupId) {
+      mergeOwners(await addOwnersToGroup(groupModal.groupId, ownerIds));
+    } else {
+      const { group, owners: updated } = await createGroup(project.id, name, ownerIds);
+      setGroups((prev) => [...prev, group]);
+      mergeOwners(updated);
+      setSelectedIds(new Set());
+    }
+    setGroupModal(null);
+  }
+
+  async function handleLeaveGroup(owner: MineralOwner) {
+    if (!owner.group_id) return;
+    const count = membersOf(owners, owner.group_id).length;
+    const gName = groupNameOf(groups, owner.group_id) ?? 'this group';
+    if (!confirm(count <= 2 ? `Remove ${owner.name} from “${gName}”? With only two owners, the group will be dissolved.` : `Remove ${owner.name} from “${gName}”?`)) return;
+    try {
+      const { owners: updated, dissolvedGroupId } = await removeOwnerFromGroup(owner.id, owner.group_id, count);
+      mergeOwners(updated);
+      if (dissolvedGroupId) setGroups((prev) => prev.filter((g) => g.id !== dissolvedGroupId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not remove that owner from the group.');
+    }
+  }
+
+  async function handleRenameGroup(groupId: string) {
+    const current = groups.find((g) => g.id === groupId);
+    const next = prompt('Group name', current?.name ?? '');
+    if (!next || !next.trim() || next.trim() === current?.name) return;
+    try {
+      const g = await renameGroup(groupId, next.trim());
+      setGroups((prev) => prev.map((x) => (x.id === g.id ? g : x)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not rename the group.');
     }
   }
 
@@ -734,6 +792,14 @@ export default function ProjectDetailPage() {
             Mark do-not-contact
           </button>
           <button
+            disabled={bulkBusy || selectedCount < 2}
+            onClick={() => setGroupModal({ groupId: null, preselected: owners.filter((o) => selectedIds.has(o.id) && !o.group_id).map((o) => o.id) })}
+            className="rounded-md border border-stone-300 bg-white px-2 py-1 text-sm hover:bg-stone-100 disabled:opacity-50 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+            title="Link the selected owners as one group (an estate and its heirs, a couple)"
+          >
+            Link as group…
+          </button>
+          <button
             disabled={bulkBusy || offerTerms.length === 0}
             onClick={() => setLetterTargets(owners.filter((o) => selectedIds.has(o.id)))}
             className="rounded-md border border-stone-300 bg-white px-2 py-1 text-sm hover:bg-stone-100 disabled:opacity-50 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
@@ -811,7 +877,17 @@ export default function ProjectDetailPage() {
                     aria-label={`Select ${o.name}`}
                   />
                 </td>
-                <td className="px-4 py-2 font-medium text-stone-900 dark:text-stone-100">{o.name}</td>
+                <td className="px-4 py-2 font-medium text-stone-900 dark:text-stone-100">
+                  {o.name}
+                  {o.group_id && (
+                    <span
+                      className="ml-2 inline-block rounded-full bg-indigo-100 px-1.5 py-0.5 align-middle text-[10px] font-medium text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
+                      title={`Related owners: ${groupNameOf(groups, o.group_id) ?? ''}`}
+                    >
+                      {groupNameOf(groups, o.group_id) ?? 'Group'} · {membersOf(owners, o.group_id).length}
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-2">{formatAcres(o.nma)}</td>
                 <td className="px-4 py-2">{formatInterest(o.interest_decimal)}</td>
                 <td className="px-4 py-2">
@@ -897,6 +973,11 @@ export default function ProjectDetailPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="truncate font-medium text-stone-900 dark:text-stone-100">{o.name}</span>
+                  {o.group_id && (
+                    <span className="shrink-0 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                      {groupNameOf(groups, o.group_id) ?? 'Group'} · {membersOf(owners, o.group_id).length}
+                    </span>
+                  )}
                   {o.do_not_contact && (
                     <span className="rounded bg-rose-100 px-1 text-[10px] font-semibold uppercase text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
                       DNC
@@ -943,6 +1024,16 @@ export default function ProjectDetailPage() {
           </div>
         )}
       </div>
+
+      {groupModal && (
+        <GroupModal
+          owners={owners}
+          group={groupModal.groupId ? groups.find((g) => g.id === groupModal.groupId) : undefined}
+          preselected={groupModal.preselected}
+          onClose={() => setGroupModal(null)}
+          onSave={handleGroupSave}
+        />
+      )}
 
       {letterTargets && (
         <OfferLetterModal
@@ -1021,6 +1112,14 @@ export default function ProjectDetailPage() {
           queueLabel={queueIds && selectedOwnerIndex !== -1 ? `${selectedOwnerIndex + 1} of ${navList.length}` : undefined}
           offerTerms={offerTerms}
           onOfferLetter={() => setLetterTargets([selectedOwner])}
+          groupName={groupNameOf(groups, selectedOwner.group_id)}
+          groupMembers={membersOf(owners, selectedOwner.group_id)}
+          onOpenOwner={(m) => setSelectedOwner(m)}
+          onLinkGroup={() => setGroupModal({ groupId: null, preselected: [selectedOwner.id] })}
+          onAddToGroup={() => setGroupModal({ groupId: selectedOwner.group_id, preselected: [] })}
+          onLeaveGroup={() => handleLeaveGroup(selectedOwner)}
+          onRenameGroup={() => selectedOwner.group_id && handleRenameGroup(selectedOwner.group_id)}
+          onGroupOwnersUpdated={mergeOwners}
           onOutcomeLogged={(updated) => {
             if (!queueIds) return;
             // Auto-advance to the next owner still in the queue.

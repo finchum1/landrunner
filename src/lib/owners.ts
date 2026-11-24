@@ -63,6 +63,7 @@ export async function updateOwner(
       phone_wrong: boolean;
       do_not_contact: boolean;
       offer_terms_id: string | null;
+      group_id: string | null;
       bonus_paid_at: string | null;
     }
   >
@@ -146,13 +147,14 @@ export type DashboardOwner = Pick<
   | 'extra_phones'
   | 'do_not_contact'
   | 'next_contact_date'
+  | 'group_id'
 >;
 
 // Every owner across all projects, with just the columns the home dashboard needs.
 export async function fetchDashboardOwners(): Promise<DashboardOwner[]> {
   const { data, error } = await supabase
     .from('mineral_owners')
-    .select('id, project_id, name, nma, status, phone, phone_wrong, extra_phones, do_not_contact, next_contact_date');
+    .select('id, project_id, name, nma, status, phone, phone_wrong, extra_phones, do_not_contact, next_contact_date, group_id');
   if (error) throw error;
   return data ?? [];
 }

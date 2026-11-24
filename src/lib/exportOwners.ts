@@ -1,11 +1,12 @@
-import type { MineralOwner, Project } from './types';
+import type { MineralOwner, OwnerGroup, Project } from './types';
 import { STATUS_LABELS } from './types';
 import type { LatestActivity } from './owners';
 import { todayDateString } from './format';
 
-export function ownersToRows(owners: MineralOwner[], latest: Record<string, LatestActivity>) {
+export function ownersToRows(owners: MineralOwner[], latest: Record<string, LatestActivity>, groups: OwnerGroup[] = []) {
   return owners.map((o) => ({
     Name: o.name,
+    'Related group': groups.find((g) => g.id === o.group_id)?.name ?? '',
     NMA: o.nma,
     'Interest %': o.interest_decimal != null ? Number((o.interest_decimal * 100).toFixed(6)) : '',
     Status: STATUS_LABELS[o.status],
@@ -28,11 +29,12 @@ export function ownersToRows(owners: MineralOwner[], latest: Record<string, Late
 export async function exportOwnersXlsx(
   project: Pick<Project, 'name'>,
   owners: MineralOwner[],
-  latest: Record<string, LatestActivity>
+  latest: Record<string, LatestActivity>,
+  groups: OwnerGroup[] = []
 ): Promise<void> {
   const XLSX = await import('xlsx');
-  const ws = XLSX.utils.json_to_sheet(ownersToRows(owners, latest));
-  ws['!cols'] = [30, 9, 10, 16, 16, 10, 28, 28, 36, 13, 13, 10, 36, 40].map((wch) => ({ wch }));
+  const ws = XLSX.utils.json_to_sheet(ownersToRows(owners, latest, groups));
+  ws['!cols'] = [30, 20, 9, 10, 16, 16, 10, 28, 28, 36, 13, 13, 10, 36, 40].map((wch) => ({ wch }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Owners');
   const safe = project.name.replace(/[^\w\- ]+/g, '').trim() || 'Project';

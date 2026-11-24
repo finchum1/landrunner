@@ -3,7 +3,7 @@ import type { MineralOwner } from './types';
 export type QueueOwner = Pick<
   MineralOwner,
   'name' | 'nma' | 'status' | 'phone' | 'phone_wrong' | 'extra_phones' | 'do_not_contact' | 'next_contact_date'
->;
+> & { group_id?: string | null };
 import { isWorkingStatus } from './callOutcomes';
 
 // Phones we'd actually dial: the main number (unless flagged wrong) plus any
@@ -38,7 +38,7 @@ export function buildCallQueue<T extends QueueOwner>(owners: T[], { today, hideZ
       !(hideZeroNma && !(o.nma > 0)) &&
       !(o.next_contact_date && o.next_contact_date > today)
   );
-  return eligible.sort((a, b) => {
+  const sorted = eligible.sort((a, b) => {
     const aDue = !!a.next_contact_date;
     const bDue = !!b.next_contact_date;
     if (aDue !== bDue) return aDue ? -1 : 1;
@@ -46,5 +46,14 @@ export function buildCallQueue<T extends QueueOwner>(owners: T[], { today, hideZ
       return (a.next_contact_date as string) < (b.next_contact_date as string) ? -1 : 1;
     }
     return b.nma - a.nma || a.name.localeCompare(b.name);
+  });
+  // Related owners (an estate and its heirs) are one call: only the first of
+  // each group appears. Logging that call applies to the others too.
+  const seen = new Set<string>();
+  return sorted.filter((o) => {
+    if (!o.group_id) return true;
+    if (seen.has(o.group_id)) return false;
+    seen.add(o.group_id);
+    return true;
   });
 }

@@ -62,3 +62,19 @@ r = planReimport(ex, [inc('Blank Person', { phone: '555' })], 'skip'); assert.eq
 r = planReimport(ex, [inc('Blank Person', { phone: '555' }), inc('blank person', { phone: '777' })], 'fill');
 assert.equal(r.toUpdate.length, 1); assert.equal(r.ambiguous, 1);
 console.log('ALL PASS');
+
+// --- groups: one queue entry per related group ---
+import { buildCallQueue as bq } from '../src/lib/callQueue.ts';
+import { callSharers, membersOf } from '../src/lib/groupLogic.ts';
+import { isWorkingStatus } from '../src/lib/callOutcomes.ts';
+{
+  const g = (id: string, nma: number, group: string | null, over: any = {}): any => ({ id, name: id, nma, status: 'not_contacted', phone: '405-1', phone_wrong: false, extra_phones: [], do_not_contact: false, next_contact_date: null, group_id: group, ...over });
+  const q = bq([g('a', 10, 'G1'), g('b', 30, 'G1'), g('c', 20, null), g('d', 5, 'G2'), g('e', 4, 'G2', { next_contact_date: '2026-11-01' })], { today: '2026-11-24', hideZeroNma: true }).map((x: any) => x.id);
+  // e is overdue so it sorts first and represents G2; b (biggest) represents G1
+  assert.deepEqual(q, ['e', 'b', 'c']);
+  const members = [g('a', 1, 'G'), g('b', 1, 'G', { status: 'leased' }), g('c', 1, 'G', { do_not_contact: true }), g('d', 1, 'G', { status: 'attempted' }), g('z', 1, 'H')];
+  assert.deepEqual(membersOf(members, 'G').map((m: any) => m.id), ['a', 'b', 'c', 'd']);
+  assert.deepEqual(callSharers(membersOf(members, 'G'), 'a', isWorkingStatus).map((m: any) => m.id), ['d']);
+  assert.deepEqual(membersOf(members, null), []);
+}
+console.log('GROUP LOGIC OK');
