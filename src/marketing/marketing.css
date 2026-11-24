@@ -1,35 +1,80 @@
 /*
   The Section Log: the public marketing site for JillSpoon Leasing, drawn as a
   well log. Everything is scoped under .jsl so none of it touches the app.
-  Light only. Square corners, 1.5px ink rules, condensed caps for labels.
+  Two themes: "log paper" (light) and "night log" (dark), switched with
+  data-theme on .jsl. Square corners, 1.5px ink rules, condensed caps for labels.
 */
-@theme {
-  --color-paper: #eff4f0;
-  --color-paper-2: #e2eae4;
-  --color-paper-3: #d4dfd7;
-  --color-ink: #12201f;
-  --color-ink-2: #3d4d4b;
-  --color-ink-3: #5b6c69;
-  --color-cyan: #2e9aa0;
-  --color-red: #c4352b;
-  --color-blue: #1d4f9e;
-  --color-green: #1c8049;
-  --color-amber: #f2a81d;
-  --color-amber-deep: #b5760b;
+@theme inline {
+  --color-paper: var(--jsl-paper);
+  --color-paper-2: var(--jsl-paper-2);
+  --color-paper-3: var(--jsl-paper-3);
+  --color-ink: var(--jsl-ink);
+  --color-ink-2: var(--jsl-ink-2);
+  --color-ink-3: var(--jsl-ink-3);
+  --color-cyan: var(--jsl-cyan);
+  --color-red: var(--jsl-red);
+  --color-blue: var(--jsl-blue);
+  --color-green: var(--jsl-green);
+  --color-amber: var(--jsl-amber);
+  --color-amber-deep: var(--jsl-amber-deep);
   --font-body: "Barlow", system-ui, sans-serif;
 }
 
 .jsl {
-  --grid: rgba(46, 154, 160, 0.17);
-  --grid-major: rgba(46, 154, 160, 0.36);
-  --rule: 1.5px solid #12201f;
-  background-color: #eff4f0;
-  color: #12201f;
+  --jsl-paper: #eff4f0;
+  --jsl-paper-2: #e2eae4;
+  --jsl-paper-3: #d4dfd7;
+  --jsl-ink: #12201f;
+  --jsl-ink-2: #3d4d4b;
+  --jsl-ink-3: #5b6c69;
+  --jsl-cyan: #2e9aa0;
+  --jsl-red: #c4352b;
+  --jsl-blue: #1d4f9e;
+  --jsl-green: #1c8049;
+  --jsl-lease: rgba(28, 128, 73, 0.9);
+  --jsl-amber: #f2a81d;
+  --jsl-amber-deep: #b5760b;
+  --jsl-amber-text: #8a5a00;
+  --jsl-on-amber: #12201f;
+  --jsl-tail-bg: #12201f;
+  --jsl-tail-fg: #eff4f0;
+  --jsl-focus: #1d4f9e;
+  --jsl-grid: rgba(46, 154, 160, 0.17);
+  --jsl-grid-major: rgba(46, 154, 160, 0.36);
+  --jsl-shadow: rgba(18, 32, 31, 0.5);
+  --rule: 1.5px solid var(--jsl-ink);
+  color-scheme: light;
+}
+.jsl[data-theme="dark"] {
+  --jsl-paper: #0d1817;
+  --jsl-paper-2: #132220;
+  --jsl-paper-3: #1b302d;
+  --jsl-ink: #e7f0ea;
+  --jsl-ink-2: #b9c9c3;
+  --jsl-ink-3: #8ea39c;
+  --jsl-cyan: #43bfc5;
+  --jsl-red: #ff6f61;
+  --jsl-blue: #7aa8ff;
+  --jsl-green: #34a96a;
+  --jsl-lease: #1f8b52;
+  --jsl-amber-deep: #f2a81d;
+  --jsl-amber-text: #f2a81d;
+  --jsl-tail-bg: #050b0a;
+  --jsl-tail-fg: #e7f0ea;
+  --jsl-focus: #9cc0ff;
+  --jsl-grid: rgba(67, 191, 197, 0.14);
+  --jsl-grid-major: rgba(67, 191, 197, 0.3);
+  --jsl-shadow: rgba(0, 0, 0, 0.7);
+  color-scheme: dark;
+}
+
+.jsl {
+  background-color: var(--jsl-paper);
+  color: var(--jsl-ink);
   font-family: "Barlow", system-ui, sans-serif;
   font-size: 1.0625rem;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
-  color-scheme: light;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -39,7 +84,7 @@
   color: #12201f;
 }
 .jsl :focus-visible {
-  outline: 3px solid #1d4f9e;
+  outline: 3px solid var(--jsl-focus);
   outline-offset: 3px;
 }
 .jsl a {
@@ -49,10 +94,10 @@
 .jsl input,
 .jsl textarea,
 .jsl select {
-  caret-color: #c4352b;
+  caret-color: var(--jsl-red);
 }
 html {
-  scroll-padding-top: 5.5rem;
+  scroll-padding-top: 6rem;
 }
 
 @layer components {
@@ -60,21 +105,21 @@ html {
     /* Log paper: only the hero field and page-title bands use it; reading text
        sits on flat paper or inside a boxed .note. */
     .log-paper {
-      background-color: #eff4f0;
+      background-color: var(--jsl-paper);
       background-image:
-        linear-gradient(to right, var(--grid-major) 1px, transparent 1px),
-        linear-gradient(to bottom, var(--grid-major) 1px, transparent 1px),
-        linear-gradient(to right, var(--grid) 1px, transparent 1px),
-        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+        linear-gradient(to right, var(--jsl-grid-major) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--jsl-grid-major) 1px, transparent 1px),
+        linear-gradient(to right, var(--jsl-grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--jsl-grid) 1px, transparent 1px);
       background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
     }
     .note {
-      background: #eff4f0;
+      background: var(--jsl-paper);
       border: var(--rule);
       padding: 1.1rem 1.3rem;
     }
     .cond {
-      font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+      font-family: "Big Shoulders Display", "Arial Narrow", sans-serif;
     }
     .num {
       font-family: "JetBrains Mono", ui-monospace, monospace;
@@ -82,15 +127,15 @@ html {
     }
     .cell {
       border: var(--rule);
-      background: #eff4f0;
+      background: var(--jsl-paper);
     }
     .label {
-      font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+      font-family: "Barlow", system-ui, sans-serif;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.12em;
-      font-size: 0.78rem;
-      color: #5b6c69;
+      font-size: 0.74rem;
+      color: var(--jsl-ink-3);
     }
     .btn {
       display: inline-flex;
@@ -99,13 +144,13 @@ html {
       gap: 0.6rem;
       min-height: 3rem;
       padding: 0.55rem 1.4rem;
-      font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
-      font-weight: 700;
-      font-size: 1.15rem;
-      letter-spacing: 0.06em;
+      font-family: "Big Shoulders Display", "Arial Narrow", sans-serif;
+      font-weight: 800;
+      font-size: 1.2rem;
+      letter-spacing: 0.07em;
       text-transform: uppercase;
       border: var(--rule);
-      box-shadow: 0 8px 16px -8px rgba(18, 32, 31, 0.5);
+      box-shadow: 0 8px 16px -8px var(--jsl-shadow);
       transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1),
         background-color 160ms;
       text-decoration: none;
@@ -113,22 +158,23 @@ html {
     }
     .btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 12px 20px -8px rgba(18, 32, 31, 0.55);
+      box-shadow: 0 12px 20px -8px var(--jsl-shadow);
     }
     .btn:active {
       transform: translateY(1px);
-      box-shadow: 0 2px 4px -2px rgba(18, 32, 31, 0.5);
+      box-shadow: 0 2px 4px -2px var(--jsl-shadow);
     }
     .btn-primary {
-      background: #f2a81d;
-      color: #12201f;
+      background: var(--jsl-amber);
+      color: var(--jsl-on-amber);
+      border-color: var(--jsl-on-amber);
     }
     .btn-primary:hover {
       background: #ffb92f;
     }
     .btn-quiet {
-      background: #eff4f0;
-      color: #12201f;
+      background: var(--jsl-paper);
+      color: var(--jsl-ink);
     }
     .log-fade {
       transition: opacity 650ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -139,6 +185,10 @@ html {
     .prose-log p + p {
       margin-top: 1em;
     }
+  }
+  /* The app screenshots are light UI: take the glare off in the night theme. */
+  .jsl[data-theme="dark"] .jsl-shot {
+    filter: brightness(0.88) contrast(1.04);
   }
 }
 

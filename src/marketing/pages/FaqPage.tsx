@@ -21,7 +21,7 @@ export default function Faq() {
       <header className="log-paper border-b-[1.5px] border-ink">
         <div className="mx-auto flex max-w-[88rem] flex-wrap items-end justify-between gap-6 px-5 py-14 sm:px-8 lg:py-20">
           <div>
-            <h1 className="cond text-[clamp(3rem,8vw,5.6rem)] font-bold uppercase leading-[0.9] text-balance">Plain answers.</h1>
+            <h1 className="cond text-[clamp(3rem,8vw,5.6rem)] font-extrabold uppercase leading-[0.9] text-balance">Plain answers.</h1>
             <p className="note mt-9 max-w-[26rem] text-[1.1rem] text-ink-2">Anything we haven’t built yet is marked as such.</p>
           </div>
           <Link to="/access" className="btn btn-primary">Request early access</Link>

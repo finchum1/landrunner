@@ -48,7 +48,7 @@ export default function Features() {
     <main>
       <header className="log-paper border-b-[1.5px] border-ink">
         <div className="mx-auto max-w-[88rem] px-5 py-14 sm:px-8 lg:py-20">
-          <h1 className="cond max-w-[16ch] text-[clamp(3rem,8vw,5.6rem)] font-bold uppercase leading-[0.9] text-balance">
+          <h1 className="cond max-w-[16ch] text-[clamp(3rem,8vw,5.6rem)] font-extrabold uppercase leading-[0.9] text-balance">
             What the log records.
           </h1>
           <p className="note mt-9 max-w-[36rem] text-[1.12rem] text-ink-2">
@@ -67,7 +67,7 @@ export default function Features() {
             <dl>
               {g.rows.map(([k, v]) => (
                 <div key={k} className="grid gap-x-8 border-b border-ink/25 py-4 sm:grid-cols-[17rem_1fr]">
-                  <dt className="cond text-[1.25rem] font-semibold leading-tight">{k}</dt>
+                  <dt className="font-body text-[1.1rem] font-semibold leading-tight">{k}</dt>
                   <dd className="mt-1 max-w-[44rem] text-[1.05rem] text-ink-2 sm:mt-0">{v}</dd>
                 </div>
               ))}

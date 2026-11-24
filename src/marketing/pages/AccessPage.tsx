@@ -7,7 +7,7 @@ export default function Access() {
     <main>
       <header className="log-paper border-b-[1.5px] border-ink">
         <div className="mx-auto max-w-[88rem] px-5 py-14 sm:px-8 lg:py-20">
-          <h1 className="cond text-[clamp(3rem,8vw,5.6rem)] font-bold uppercase leading-[0.9] text-balance">Get on the log.</h1>
+          <h1 className="cond text-[clamp(3rem,8vw,5.6rem)] font-extrabold uppercase leading-[0.9] text-balance">Get on the log.</h1>
           <p className="note mt-9 max-w-[32rem] text-[1.12rem] text-ink-2">
             JillSpoon Leasing is in private use today. Tell us how you work and ask to be told if it opens up to
             more landmen. Nothing is promised.

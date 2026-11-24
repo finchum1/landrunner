@@ -11,7 +11,7 @@ export default function Home() {
 
       <section aria-labelledby="screens" className="border-y-[1.5px] border-ink bg-paper-2/80 py-20 lg:py-28">
         <div className="mx-auto max-w-[88rem] px-5 sm:px-8">
-          <h2 id="screens" className="cond max-w-[18ch] text-[clamp(2.4rem,5vw,3.8rem)] font-bold uppercase leading-[0.95] text-balance">
+          <h2 id="screens" className="cond max-w-[18ch] text-[clamp(2.4rem,5vw,3.8rem)] font-extrabold uppercase leading-[0.95] text-balance">
             The same project, from the driver’s seat.
           </h2>
           <p className="mt-4 max-w-[40rem] text-[1.1rem] text-ink-2">
@@ -60,7 +60,7 @@ export default function Home() {
 
       <section aria-labelledby="landman" className="mx-auto max-w-[88rem] px-5 py-20 sm:px-8 lg:py-28">
         <div className="grid gap-10 lg:grid-cols-12">
-          <h2 id="landman" className="cond text-[clamp(2.4rem,5vw,3.8rem)] font-bold uppercase leading-[0.95] text-balance lg:col-span-6">
+          <h2 id="landman" className="cond text-[clamp(2.4rem,5vw,3.8rem)] font-extrabold uppercase leading-[0.95] text-balance lg:col-span-6">
             Built by a working landman.
           </h2>
           <div className="prose-log max-w-[36rem] text-[1.12rem] text-ink-2 lg:col-span-6">

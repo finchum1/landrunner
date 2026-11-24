@@ -56,7 +56,7 @@ export default function Scrolly() {
 
   // Fit the sticky log to the window: chrome around the strip is ~380px.
   useEffect(() => {
-    const fit = () => setBodyH(Math.max(260, Math.min(560, Math.round(window.innerHeight - 414))));
+    const fit = () => setBodyH(Math.max(260, Math.min(560, Math.round(window.innerHeight - 440))));
     fit();
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
@@ -91,7 +91,7 @@ export default function Scrolly() {
               data-step={0}
               className="flex flex-col justify-center pb-6 pt-8 lg:min-h-[calc(100svh-7rem)] lg:py-16"
             >
-              <h1 className="cond text-[clamp(2.9rem,9vw,6rem)] font-bold uppercase leading-[0.9] tracking-[-0.005em] text-balance">
+              <h1 className="cond text-[clamp(2.9rem,9vw,6rem)] font-extrabold uppercase leading-[0.9] tracking-[-0.005em] text-balance">
                 Every net mineral acre, logged.
               </h1>
               <p className="note mt-4 max-w-[34rem] !p-3.5 text-[1rem] leading-[1.42] text-ink-2 lg:mt-6 lg:!p-[1.1rem_1.3rem] lg:text-[1.18rem]">
@@ -119,7 +119,7 @@ export default function Scrolly() {
                 data-step={i + 1}
                 className="hidden flex-col justify-center lg:flex lg:min-h-[78svh] lg:py-16"
               >
-                <h2 className="cond max-w-[20ch] text-[clamp(2.2rem,4.6vw,3.4rem)] font-bold uppercase leading-[0.96] tracking-[-0.005em] text-balance">
+                <h2 className="cond max-w-[20ch] text-[clamp(2.2rem,4.6vw,3.4rem)] font-extrabold uppercase leading-[0.96] tracking-[-0.005em] text-balance">
                   {s.title}
                 </h2>
                 <div className="note prose-log mt-5 max-w-[34rem] text-[1.1rem] text-ink-2">
@@ -132,7 +132,7 @@ export default function Scrolly() {
           </div>
 
           {/* the log: sticky on desktop, a tabbed instrument on phones */}
-          <div id="log" className="lg:col-start-2 lg:row-start-1 lg:sticky lg:top-[4.25rem] lg:pt-3">
+          <div id="log" className="lg:col-start-2 lg:row-start-1 lg:sticky lg:top-[5.5rem] lg:pt-3">
             <div className="hidden lg:block">
               <SectionLog step={active} bodyH={bodyH} uid="d" />
             </div>
@@ -148,7 +148,7 @@ export default function Scrolly() {
                     role="tab"
                     aria-selected={active === i + 1}
                     onClick={() => setActive(i + 1)}
-                    className={`cond py-3 text-[0.95rem] font-bold uppercase tracking-[0.08em] ${i > 0 ? "border-l-[1.5px] border-ink" : ""} ${
+                    className={`cond py-3 text-[1.1rem] font-bold uppercase tracking-[0.08em] ${i > 0 ? "border-l-[1.5px] border-ink" : ""} ${
                       active === i + 1 ? "bg-ink text-paper" : "bg-paper text-ink"
                     }`}
                   >
