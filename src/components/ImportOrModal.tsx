@@ -184,10 +184,10 @@ export default function ImportOrModal({
                 )}
                 {impact.length > 0 && (
                   <div className="mt-3 rounded-md bg-amber-50 p-2 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                    <div className="mb-1 font-medium">{impact.length} LPR{impact.length === 1 ? '' : 's'} cover lines that changed — they may need a revised LPR</div>
+                    <div className="mb-1 font-medium">{impact.length} LPR{impact.length === 1 ? ' covers a line that changed — it may' : 's cover lines that changed — they may'} need a revised LPR</div>
                     <ul className="list-disc space-y-0.5 pl-5 text-xs">
                       {impact.map((i) => (
-                        <li key={i.id}><b>{i.lessor}</b>: {i.reasons.join('; ')}</li>
+                        <li key={i.id}><b>{i.lessor}</b>: {i.reasons.map((r) => (r.startsWith(`${i.lessor}: `) ? r.slice(i.lessor.length + 2) : r)).join('; ')}</li>
                       ))}
                     </ul>
                   </div>

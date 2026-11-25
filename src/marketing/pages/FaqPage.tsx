@@ -7,10 +7,13 @@ const QA: [string, string][] = [
   ["Does it dial for me?", "No. On a phone, the Call button opens your dialer with the number filled in. You make the call, then tap what happened."],
   ["Does it work on my phone?", "Yes. The owner table becomes a list of owner cards, with a Call button on each, so it works from the truck."],
   ["Can I bring my own spreadsheet?", "Yes. CSV and Excel. It finds the header row, guesses the columns, and lets you correct them before anything is imported. Re-importing later updates owners by name rather than duplicating them."],
-  ["Does it write the lease?", "It writes the offer letter, as a Word document built from your project’s terms. It does not draft lease forms."],
+  ["Does it write the lease?", "It writes the offer letter, as a Word document built from your project’s terms, and it fills the Lease Purchase Request your leasing team prepares the lease from. It does not draft lease forms."],
+  ["Does it read the title company’s ownership report?", "Yes. It reads the workbook (plat, owner summary, tract tabs, runsheet), links each line to an owner in your project, and keeps the examiner’s notes with them. Tract layouts vary by county; tabs are recognised by what’s on them, not by name."],
+  ["Does it send the LPR to my office?", "Not yet. It downloads the filled-in LPR and you send it, the way you do today. Status (draft, sent, lease mailed, signed) is tracked in the app."],
+  ["What happens when the title report is updated?", "Import the newer report and it shows what changed first. Owners and requests stay linked to lines that are still there, and any request covering a changed line is flagged for a revised LPR."],
   ["Who can see my project?", "Today each account is one landman. Team and operator access are not built yet."],
   ["Can I get my data out?", "Yes. The owner list, the status report and the invoice all export to Excel, and the report and invoice print to PDF."],
-  ["Does it send reminders?", "Not yet. The dashboard shows what’s due today and this week; email and calendar reminders are not built."],
+  ["Does it send reminders?", "Yes, two ways. A private calendar link puts every follow-up in your iPhone, Google or Outlook calendar with a 9 am alert, and an optional morning email lists who’s due. The dashboard also shows what’s due today and this week."],
   ["Why is it called JillSpoon Leasing?", "It’s a working name and may change. Nothing about how it works depends on it."],
 ];
 

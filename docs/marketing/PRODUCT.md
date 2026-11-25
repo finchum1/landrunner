@@ -29,7 +29,7 @@ A project = one section/township/range in a county for one operator, with a pros
 ## Capabilities and Constraints
 
 Built and live today (as the app "Landrunner"): multi-project tracking; spreadsheet import and safe re-import (match by name, fill blanks); owner table with status counts, sort, filters, bulk actions, Excel export; call outcomes that move status and set follow-up dates; call queue; wrong-number and do-not-contact flags, extra phone numbers; dashboard of due follow-ups across projects; offer letter generation to Word (.docx) from the project's terms, one page per owner; per-owner terms tiers; lease bonus due/paid tracking; file attachments per owner; client status report (print/PDF + Excel); prospect billing (hours, mileage, expenses, invoice print/Excel, mark billed); light/dark themes; mobile layout.
-Single user today (Terrence). Multi-user, daily email/calendar reminders, heirs/family grouping are NOT built. Pricing, signup, and public availability are undecided: the site must not state prices or claim open signup.
+Single user today (Terrence). Multi-user (team) access is NOT built. Built since: related-owner groups, calendar-feed reminders (+ optional morning email), Ownership Report import, Lease Purchase Request builder, LPR status tracking, newer-report comparison. Pricing, signup, and public availability are undecided: the site must not state prices or claim open signup.
 
 ## Brand Commitments
 

@@ -35,6 +35,22 @@ export default function Home() {
                 entries billed, and don’t bill them twice.
               </p>
             </div>
+            <div>
+              <Exhibit src="/shots/d-family.webp" phoneSrc="/shots/m-family.webp" alt="Owner panel showing a family group with its combined acres, the title notes from the ownership report and a draft lease request" title="Owner panel" />
+              <h3 className="cond mt-5 text-[1.7rem] font-extrabold uppercase leading-none">Estates, heirs and couples, together</h3>
+              <p className="mt-3 max-w-[34rem] text-[1.05rem] text-ink-2">
+                Link related owners into a group. Each keeps their own status and call log, and the panel shows the
+                family’s combined net acres beside the examiner’s notes and any lease request.
+              </p>
+            </div>
+            <div>
+              <Exhibit src="/shots/m-reminders.webp" phoneSrc="/shots/m-reminders.webp" phoneOnly alt="Reminders page with a private calendar link to subscribe an iPhone, Google or Outlook calendar" title="Reminders" />
+              <h3 className="cond mt-5 text-[1.7rem] font-extrabold uppercase leading-none">Today’s calls, in your own calendar</h3>
+              <p className="mt-3 max-w-[34rem] text-[1.05rem] text-ink-2">
+                Subscribe your iPhone, Google or Outlook calendar to a private link. Every follow-up shows up as an
+                all-day event with a 9 am alert and the owner’s number in the notes, and overdue calls move to today.
+              </p>
+            </div>
           </div>
         </div>
       </section>

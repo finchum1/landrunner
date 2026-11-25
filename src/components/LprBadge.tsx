@@ -32,7 +32,7 @@ export default function LprBadge({ info }: { info: LprSummary | undefined }) {
   if (!info) return null;
   return (
     <span
-      className={`ml-2 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 align-middle text-[10px] font-medium ${STYLE[info.status]}`}
+      className={`ml-2 inline-flex items-center gap-1 whitespace-nowrap rounded-full px-1.5 py-0.5 align-middle text-[10px] font-medium ${STYLE[info.status]}`}
       title={`${info.count} LPR${info.count === 1 ? '' : 's'}; furthest along: ${LABEL[info.status]}${info.changed ? '. The ownership report changed since: check for a revised LPR.' : ''}`}
     >
       {LABEL[info.status]}

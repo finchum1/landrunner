@@ -20,6 +20,9 @@ const GROUPS: { name: string; rows: [string, string][] }[] = [
       ["Contact research", "Extra phone numbers, wrong-number flags, do-not-contact, and filters for who is missing a phone or email."],
       ["Tap to call, text, email", "On a phone the buttons open your dialer, messages or mail. You make the call; the log is one tap."],
       ["Follow-ups across projects", "A dashboard of what’s due today, overdue, and coming this week."],
+      ["Related owners", "Link an estate and its heirs, or a couple, into a group. See the family’s combined net acres and everyone’s status in one panel."],
+      ["Calendar reminders", "A private calendar link for iPhone, Google or Outlook. Each follow-up is an all-day event with a 9 am alert and the phone number in the notes; overdue calls move to today."],
+      ["Morning email, optional", "A short email around 8 am Central on days something is due, with tap-to-call numbers. It stays off until it’s switched on."],
     ],
   },
   {
@@ -29,6 +32,18 @@ const GROUPS: { name: string; rows: [string, string][] }[] = [
       ["Owner-by-owner terms", "Assign an owner a different tier; their letter and their bonus follow it."],
       ["Bonus due and paid", "Net acres times rate for every leased owner, a paid date, and a running total outstanding."],
       ["Files on the owner", "Leases, division orders and title letters stored privately with the owner they belong to."],
+    ],
+  },
+  {
+    name: "Title and lease requests",
+    rows: [
+      ["Ownership report import", "The title company’s workbook: plat, owner summary, a tab per tract and the runsheet. Tabs are recognised by what’s on them, so a different county or tract layout still reads."],
+      ["Lines linked to people", "Report lines are matched to your project’s owners by name. Link the rest by hand, or add the unlinked ones as new owners."],
+      ["Title notes and chain of title", "The examiner’s general, subject and stranger-in-title notes, and the runsheet, sit with the owner they concern."],
+      ["Lease Purchase Request", "Filled from the owner’s report lines: lessor, address, tract descriptions and acres, bonus, royalty and term, with title and curative flags set from the notes. Download your office’s LPR, filled in."],
+      ["Drafts in bulk", "Select owners and make a draft for each. Someone who signs in two capacities gets two requests."],
+      ["Request status", "Draft, sent to the leasing team, lease mailed, signed. The furthest status shows beside each owner, with a filter by status."],
+      ["Newer report, compared first", "Importing an updated report shows what changed before it’s saved, keeps your links, and flags every request that covers a changed line."],
     ],
   },
   {
@@ -52,8 +67,7 @@ export default function Features() {
             What the log records.
           </h1>
           <p className="note mt-9 max-w-[36rem] text-[1.12rem] text-ink-2">
-            Everything below is built and in use today. Team access and automatic reminders are not, and are
-            left off the list on purpose.
+            Everything below is built and in use today. Team access is not, and is left off the list on purpose.
           </p>
         </div>
       </header>
@@ -78,6 +92,9 @@ export default function Features() {
 
       <section aria-label="More screens" className="border-y-[1.5px] border-ink bg-paper-2/80 py-16 lg:py-24">
         <div className="mx-auto max-w-[72rem] space-y-14 px-5 sm:px-8">
+          <Exhibit src="/shots/d-or.webp" phoneSrc="/shots/m-or.webp" alt="Ownership report page: owner lines with interest, net acres by tract and the linked owner" title="Ownership report: every line, linked to the owner" />
+          <Exhibit src="/shots/d-lpr.webp" phoneSrc="/shots/m-lpr.webp" alt="Lease Purchase Request filled in from the ownership report" title="Lease purchase request: filled from the title" />
+          <Exhibit src="/shots/d-update.webp" phoneSrc="/shots/m-update.webp" alt="Newer ownership report compared with the one on file, with lease requests flagged for revision" title="Newer report: what changed, before you save it" />
           <Exhibit src="/shots/d-dashboard.webp" phoneSrc="/shots/m-dashboard.webp" alt="Dashboard of calls due today and follow-ups across projects" title="Dashboard: what’s due, across every project" />
           <Exhibit src="/shots/d-billing.webp" phoneSrc="/shots/m-billing.webp" alt="Billing page: hours, mileage and expenses totalled into an invoice" title="Billing: hours, mileage and expenses to an invoice" />
         </div>

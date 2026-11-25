@@ -7,8 +7,12 @@ import Exhibit from "./Exhibit";
 const SHOTS = [
   { d: "project", m: "owners", title: "The project", alt: "Project page: status counts, filters and every owner ranked by net mineral acres" },
   { d: "import", m: "import", title: "Import the spreadsheet", alt: "Upload dialog matching spreadsheet columns to owner fields, with a preview of the owners" },
+  { d: "or", m: "or", title: "Ownership report", alt: "Ownership report page: every owner line with interest, net acres by tract and the owner it is linked to in the project" },
   { d: "owner", m: "owner", title: "Log the call", alt: "Owner panel with one-tap call outcomes: no answer, voicemail, spoke with them, interested" },
   { d: "letters", m: "letters", title: "Offer letters", alt: "Offer letter dialog with the terms to offer and a live preview of the letter" },
+  { d: "lpr", m: "lpr", title: "Lease purchase request", alt: "Lease Purchase Request filled in from the ownership report: lessor, lease terms and acres by tract" },
+  { d: "status", m: "status", title: "Request status", alt: "Owner list with a status badge beside each name: LPR draft, LPR sent, lease mailed, lease signed" },
+  { d: "update", m: "update", title: "Newer title report", alt: "Import of a newer ownership report showing what changed and which lease requests need a revision" },
   { d: "lease", m: "lease", title: "Lease and bonus", alt: "Leased owner with the bonus due, the date it was paid, and the executed lease attached" },
   { d: "report", m: "report", title: "Status report", alt: "Client status report: percent of net acres leased, progress by status, leased owners and bonus" },
 ] as const;
@@ -20,6 +24,14 @@ const STEPS = [
     body: [
       "Drop in the ownership report. Every owner lands in the project ranked by net mineral acres — name, interest, NMA, notes — with the header row and columns found for you.",
       "When the title update comes in, re-import it. Owners are matched by name, blanks get filled, and nothing you’ve already worked is overwritten.",
+    ],
+  },
+  {
+    id: "title",
+    title: "Read the title. Don’t retype it.",
+    body: [
+      "Drop in the title company’s Ownership Report: the plat, the owner summary, a tab for each tract and the runsheet. Tabs are recognised by what’s on them, so another county or another tract layout still reads.",
+      "Every owner line is matched to the person in your project, with acres by tract, the examiner’s notes and the chain of title one tap from the owner. An estate and its heirs, or a couple, can be grouped so you see the family’s acres together.",
     ],
   },
   {
@@ -36,6 +48,29 @@ const STEPS = [
     body: [
       "Set the project’s terms once: bonus per net mineral acre, royalty, term, an option to extend, and how many days the offer stays open. Add a second tier for the owner who wants more.",
       "Select owners and download Word letters, one page each, addressed and dated. They’re logged and marked Offer Made with a follow-up already set.",
+    ],
+  },
+  {
+    id: "lpr",
+    title: "Fill the lease request from the title.",
+    body: [
+      "Pick an owner and the Lease Purchase Request fills itself from their report lines: lessor, address, tract descriptions and acres, bonus, royalty and term, and the title notes that matter. One request per signing capacity.",
+      "Check it, then download the office’s own LPR with the formulas intact, ready to send to the leasing team. Select a handful of owners and make a draft for each.",
+    ],
+  },
+  {
+    id: "track",
+    title: "See every request at a glance.",
+    body: [
+      "Mark each request draft, sent, lease mailed or signed. The furthest status shows beside the owner’s name in the list, and a filter pulls up everyone with no request yet, or everyone still waiting on a signature.",
+    ],
+  },
+  {
+    id: "update",
+    title: "When the title moves, you’ll know.",
+    body: [
+      "Import the examiner’s newer report and see what changed before anything is saved: new owners, changed interests, new title notes, new runsheet entries.",
+      "Owners and requests stay linked to the lines that are still there, and any request covering a changed line is flagged for a revised LPR.",
     ],
   },
   {
@@ -56,7 +91,7 @@ const STEPS = [
 ] as const;
 
 export default function Scrolly() {
-  const [active, setActive] = useState(0); // 0 = opening view, 1..5 = steps
+  const [active, setActive] = useState(0); // 0 = opening view, 1..n = steps
   const refs = useRef<(HTMLElement | null)[]>([]);
 
   useEffect(() => {
@@ -90,8 +125,8 @@ export default function Scrolly() {
                 Every net mineral acre, logged.
               </h1>
               <p className="note mt-4 max-w-[34rem] !p-3.5 text-[1rem] leading-[1.42] text-ink-2 lg:mt-6 lg:!p-[1.1rem_1.3rem] lg:text-[1.15rem]">
-                Run a lease project from the ownership spreadsheet to the operator’s status report: call queue,
-                offer letters, bonus tracking and billing. Built by a working landman.
+                Run a lease project from the title company’s ownership report to the operator’s status report: call
+                queue, offer letters, lease purchase requests, bonus tracking and billing. Built by a working landman.
               </p>
               <div className="mt-6 flex flex-wrap gap-4 lg:mt-8">
                 <Link to="/access" className="btn btn-primary max-lg:w-full">
