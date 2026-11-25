@@ -15,7 +15,8 @@ import GroupModal from '../components/GroupModal';
 import LprModal from '../components/LprModal';
 import { fetchProfile } from '../lib/profile';
 import { buildLprDraft } from '../lib/lpr';
-import { saveLprDrafts } from '../lib/lprApi';
+import { fetchLprs, saveLprDrafts, type LprRecord, type LprStatus } from '../lib/lprApi';
+import LprBadge, { summarizeLprs } from '../components/LprBadge';
 import { fetchOrBundle, fetchRunsheet, type OrBundle } from '../lib/orApi';
 import type { OrRun } from '../lib/types';
 import { addOwnersToGroup, createGroup, fetchGroups, removeOwnerFromGroup, renameGroup } from '../lib/groups';
@@ -154,6 +155,9 @@ export default function ProjectDetailPage() {
   const [runsheet, setRunsheet] = useState<OrRun[] | null>(null);
   // The owner an LPR is being prepared for, and who is signing as the buyer.
   const [lprOwner, setLprOwner] = useState<MineralOwner | null>(null);
+  const [lprs, setLprs] = useState<LprRecord[]>([]);
+  const [lprFilter, setLprFilter] = useState<LprStatus | 'any' | 'none'>('any');
+  const lprByOwner = useMemo(() => summarizeLprs(lprs), [lprs]);
   const [buyerName, setBuyerName] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [groupModal, setGroupModal] = useState<{ groupId: string | null; preselected: string[] } | null>(null);
@@ -201,6 +205,7 @@ export default function ProjectDetailPage() {
       setGroups(groupRows);
       fetchOrBundle(id).then(setOrBundle).catch(() => setOrBundle(null));
       fetchProfile().then((p) => setBuyerName(p?.full_name ?? '')).catch(() => {});
+      fetchLprs(id).then(setLprs).catch(() => setLprs([]));
       setLatestNotes(Object.fromEntries(latestActivityRows.map((a) => [a.owner_id, a])));
       setOfferTerms(termsRows);
     } catch (err) {
@@ -279,6 +284,8 @@ export default function ProjectDetailPage() {
         if (contactFilter === 'no_email' && o.email && o.email.trim()) return false;
         if (contactFilter === 'wrong_phone' && !o.phone_wrong) return false;
         if (contactFilter === 'dnc' && !o.do_not_contact) return false;
+        if (lprFilter === 'none' && lprByOwner.has(o.id)) return false;
+        if (lprFilter !== 'any' && lprFilter !== 'none' && lprByOwner.get(o.id)?.status !== lprFilter) return false;
         if (search.trim()) {
           const q = search.trim().toLowerCase();
           if (!o.name.toLowerCase().includes(q) && !(groupNameOf(groups, o.group_id) ?? '').toLowerCase().includes(q)) return false;
@@ -287,7 +294,7 @@ export default function ProjectDetailPage() {
         return true;
       })
       .sort((a, b) => compareOwners(a, b, sortKey, sortDir));
-  }, [owners, groups, search, statusFilter, contactFilter, hideZeroNma, showFollowUpsOnly, sortKey, sortDir]);
+  }, [owners, groups, lprByOwner, lprFilter, search, statusFilter, contactFilter, hideZeroNma, showFollowUpsOnly, sortKey, sortDir]);
 
   function toggleFollowUpsOnly() {
     setShowFollowUpsOnly((prev) => {
@@ -464,6 +471,7 @@ export default function ProjectDetailPage() {
         }))
       );
       setNotice(`Created ${items.length} LPR draft${items.length === 1 ? '' : 's'}. Review and download them on the LPRs page.`);
+      fetchLprs(project.id).then(setLprs).catch(() => {});
       setSelectedIds(new Set());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create the LPR drafts.');
@@ -763,6 +771,21 @@ export default function ProjectDetailPage() {
             <option value="wrong_phone">Wrong number</option>
             <option value="dnc">Do not contact</option>
           </select>
+          {lprs.length > 0 && (
+            <select
+              value={lprFilter}
+              onChange={(e) => setLprFilter(e.target.value as LprStatus | 'any' | 'none')}
+              className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+              title="Filter by lease purchase request status"
+            >
+              <option value="any">Any LPR status</option>
+              <option value="none">No LPR yet</option>
+              <option value="draft">LPR draft</option>
+              <option value="sent">LPR sent</option>
+              <option value="mailed">Lease mailed</option>
+              <option value="signed">Lease signed</option>
+            </select>
+          )}
           <button
             onClick={toggleHideZero}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
@@ -974,6 +997,7 @@ export default function ProjectDetailPage() {
                       {groupNameOf(groups, o.group_id) ?? 'Group'} · {membersOf(owners, o.group_id).length}
                     </span>
                   )}
+                  <LprBadge info={lprByOwner.get(o.id)} />
                 </td>
                 <td className="px-4 py-2">{formatAcres(o.nma)}</td>
                 <td className="px-4 py-2">{formatInterest(o.interest_decimal)}</td>
@@ -1065,6 +1089,7 @@ export default function ProjectDetailPage() {
                       {groupNameOf(groups, o.group_id) ?? 'Group'} · {membersOf(owners, o.group_id).length}
                     </span>
                   )}
+                  <LprBadge info={lprByOwner.get(o.id)} />
                   {o.do_not_contact && (
                     <span className="rounded bg-rose-100 px-1 text-[10px] font-semibold uppercase text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
                       DNC
@@ -1122,6 +1147,7 @@ export default function ProjectDetailPage() {
           groupName={groupNameOf(groups, lprOwner.group_id)}
           onClose={() => setLprOwner(null)}
           onSaved={() => {
+            fetchLprs(project.id).then(setLprs).catch(() => {});
             setLprOwner(null);
             setNotice(`Saved the LPR for ${lprOwner.name}.`);
           }}
@@ -1228,6 +1254,7 @@ export default function ProjectDetailPage() {
           titleNotes={orBundle?.notes ?? []}
           titleRunsheet={runsheet}
           onPrepareLpr={() => setLprOwner(selectedOwner)}
+          lprs={lprs.filter((l) => l.owner_id === selectedOwner.id)}
           onLoadRunsheet={() => orBundle && fetchRunsheet(orBundle.report.id).then(setRunsheet).catch(() => setRunsheet([]))}
           onOutcomeLogged={(updated) => {
             if (!queueIds) return;

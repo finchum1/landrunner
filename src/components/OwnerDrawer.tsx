@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ExtraPhone, MineralOwner, OrInterest, OrNote, OrRun, OwnerActivity, OwnerStatus, ProjectOfferTerms } from '../lib/types';
 import { notesForRefs, runsheetFor, splitRefs } from '../lib/orMatch';
+import type { LprRecord } from '../lib/lprApi';
 import { CONTACT_STATUSES, STATUS_COLORS, STATUS_LABELS, STATUS_ORDER } from '../lib/types';
 import { addActivity, deleteOwner, fetchActivity, updateOwner } from '../lib/owners';
 import { formatAcres, formatNma, formatDateOnly, formatDateTime, formatInterest, todayDateString } from '../lib/format';
@@ -62,6 +63,7 @@ export default function OwnerDrawer({
   hasReport = false,
   onLoadRunsheet,
   onPrepareLpr,
+  lprs = [],
 }: {
   owner: MineralOwner;
   onClose: () => void;
@@ -93,6 +95,7 @@ export default function OwnerDrawer({
   hasReport?: boolean;
   onLoadRunsheet?: () => void;
   onPrepareLpr?: () => void;
+  lprs?: LprRecord[];
 }) {
   const [nma, setNma] = useState(String(owner.nma ?? ''));
   const [interestPercent, setInterestPercent] = useState(
@@ -673,6 +676,19 @@ export default function OwnerDrawer({
                     </button>
                   )}
                 </div>
+                {lprs.length > 0 && (
+                  <ul className="mb-2 space-y-1">
+                    {lprs.map((l) => (
+                      <li key={l.id} className="flex items-center justify-between gap-2 rounded bg-stone-50 px-2 py-1 text-xs dark:bg-stone-800">
+                        <span className="truncate text-stone-700 dark:text-stone-300" title={l.lessor}>LPR · {l.lessor}</span>
+                        <span className="shrink-0 font-medium text-stone-600 dark:text-stone-300">
+                          {l.status === 'draft' ? 'Draft' : l.status === 'sent' ? 'Sent' : l.status === 'mailed' ? 'Lease mailed' : 'Signed'}
+                          {l.data.orChange ? ' · report changed' : ''}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 {titleLines.length === 0 ? (
                   <p className="text-xs text-stone-400">No ownership report lines are linked to this owner yet. Link them from the ownership report page, or prepare an LPR and pick the lines.</p>
                 ) : (
