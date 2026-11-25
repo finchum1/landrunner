@@ -74,6 +74,8 @@ export interface Project {
   operator_name: string | null;
   // Days an offer stays open after receipt (offer letter wording).
   offer_valid_days: number;
+  // Initials/name of the office's project manager (printed on LPRs).
+  project_manager: string | null;
   // Billing rates for this prospect (hours / mileage), in dollars.
   hourly_rate: number | null;
   mileage_rate: number | null;
@@ -163,3 +165,68 @@ export const ROYALTY_PRESETS: { label: string; fraction: number }[] = [
   { label: '3/8', fraction: 0.375 },
   { label: '1/4', fraction: 0.25 },
 ];
+
+// ---- Ownership Report (the title company's workbook) ----
+export interface OrReport {
+  id: string;
+  project_id: string;
+  prospect_number: string | null;
+  section: string | null;
+  township: string | null;
+  range: string | null;
+  county: string | null;
+  state: string | null;
+  description: string | null;
+  gross_acres: number | null;
+  or_date: string | null;
+  last_entry: string | null;
+  examiner: string | null;
+  report_type: string | null;
+  begin_date: string | null;
+  end_date: string | null;
+  source_filename: string | null;
+  imported_at: string;
+}
+export interface OrTract {
+  id: string;
+  report_id: string;
+  label: string;
+  description: string | null;
+  gross_acres: number | null;
+  sort_order: number;
+}
+export interface OrInterest {
+  id: string;
+  report_id: string;
+  project_id: string;
+  owner_id: string | null;
+  name: string;
+  address: string | null;
+  interest: number | null;
+  net_acres: number | null;
+  note_refs: string | null;
+  tract_acres: Record<string, number>;
+  row_order: number;
+}
+export interface OrNote {
+  id: string;
+  report_id: string;
+  kind: 'general' | 'subject' | 'stranger';
+  ref: string | null;
+  body: string;
+  sort_order: number;
+}
+export interface OrRun {
+  id: string;
+  report_id: string;
+  book_page: string | null;
+  instrument: string | null;
+  effective_date: string | null;
+  file_date: string | null;
+  grantor: string | null;
+  grantee: string | null;
+  legal: string | null;
+  conveyance: string | null;
+  notes: string | null;
+  row_order: number;
+}

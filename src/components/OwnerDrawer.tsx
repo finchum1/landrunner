@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import type { ExtraPhone, MineralOwner, OwnerActivity, OwnerStatus, ProjectOfferTerms } from '../lib/types';
+import type { ExtraPhone, MineralOwner, OrInterest, OrNote, OrRun, OwnerActivity, OwnerStatus, ProjectOfferTerms } from '../lib/types';
+import { notesForRefs, runsheetFor, splitRefs } from '../lib/orMatch';
 import { CONTACT_STATUSES, STATUS_COLORS, STATUS_LABELS, STATUS_ORDER } from '../lib/types';
 import { addActivity, deleteOwner, fetchActivity, updateOwner } from '../lib/owners';
-import { formatAcres, formatDateOnly, formatDateTime, formatInterest, todayDateString } from '../lib/format';
+import { formatAcres, formatNma, formatDateOnly, formatDateTime, formatInterest, todayDateString } from '../lib/format';
 import { CALL_OUTCOMES, planOutcome, type CallOutcome } from '../lib/callOutcomes';
 import { usablePhones } from '../lib/callQueue';
 import { bonusDue } from '../lib/bonus';
@@ -55,6 +56,12 @@ export default function OwnerDrawer({
   onLeaveGroup,
   onRenameGroup,
   onGroupOwnersUpdated,
+  titleLines = [],
+  titleNotes = [],
+  titleRunsheet = null,
+  hasReport = false,
+  onLoadRunsheet,
+  onPrepareLpr,
 }: {
   owner: MineralOwner;
   onClose: () => void;
@@ -79,6 +86,13 @@ export default function OwnerDrawer({
   onLeaveGroup?: () => void;
   onRenameGroup?: () => void;
   onGroupOwnersUpdated?: (updated: MineralOwner[]) => void;
+  // The ownership report: this owner's lines, the report's notes, and (once asked for) its runsheet.
+  titleLines?: OrInterest[];
+  titleNotes?: OrNote[];
+  titleRunsheet?: OrRun[] | null;
+  hasReport?: boolean;
+  onLoadRunsheet?: () => void;
+  onPrepareLpr?: () => void;
 }) {
   const [nma, setNma] = useState(String(owner.nma ?? ''));
   const [interestPercent, setInterestPercent] = useState(
@@ -95,6 +109,7 @@ export default function OwnerDrawer({
   const [extraPhones, setExtraPhones] = useState<ExtraPhone[]>(owner.extra_phones ?? []);
   const [outcome, setOutcome] = useState<CallOutcome | null>(null);
   const [shareWithGroup, setShareWithGroup] = useState(true);
+  const [showChain, setShowChain] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -648,6 +663,75 @@ export default function OwnerDrawer({
                 </>
               )}
             </div>
+            {hasReport && (
+              <div className="mt-4 rounded-md border border-stone-200 p-3 dark:border-stone-800">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Title (ownership report)</span>
+                  {onPrepareLpr && (
+                    <button type="button" onClick={onPrepareLpr} className="text-xs font-medium text-amber-700 hover:underline dark:text-amber-400">
+                      Prepare LPR…
+                    </button>
+                  )}
+                </div>
+                {titleLines.length === 0 ? (
+                  <p className="text-xs text-stone-400">No ownership report lines are linked to this owner yet. Link them from the ownership report page, or prepare an LPR and pick the lines.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {titleLines.map((l) => (
+                      <li key={l.id} className="text-sm">
+                        <div className="truncate text-stone-800 dark:text-stone-200" title={l.name}>{l.name}</div>
+                        <div className="text-xs text-stone-500 dark:text-stone-400">
+                          {formatNma(l.net_acres)} NMA
+                          {Object.entries(l.tract_acres).map(([t, a]) => ` · Tr ${t}: ${formatNma(a)}`).join('')}
+                          {l.note_refs ? ` · Note ${l.note_refs}` : ''}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {(() => {
+                  const refs = [...new Set(titleLines.flatMap((l) => splitRefs(l.note_refs)))];
+                  const notes = notesForRefs(titleNotes, refs);
+                  return notes.length > 0 ? (
+                    <div className="mt-2 space-y-1.5 border-t border-stone-100 pt-2 dark:border-stone-800">
+                      {notes.map((n) => (
+                        <details key={n.id} className="text-xs text-stone-600 dark:text-stone-300">
+                          <summary className="cursor-pointer font-medium text-stone-700 dark:text-stone-200">Note {n.ref}: {n.body.slice(0, 70)}{n.body.length > 70 ? '…' : ''}</summary>
+                          <p className="mt-1 whitespace-pre-line">{n.body}</p>
+                        </details>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
+                {titleLines.length > 0 && (
+                  <div className="mt-2 border-t border-stone-100 pt-2 dark:border-stone-800">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowChain((v) => !v);
+                        if (!titleRunsheet) onLoadRunsheet?.();
+                      }}
+                      className="text-xs font-medium text-stone-600 hover:underline dark:text-stone-300"
+                    >
+                      {showChain ? 'Hide chain of title' : 'Show chain of title'}
+                    </button>
+                    {showChain && (
+                      <div className="mt-1.5 max-h-48 overflow-y-auto text-xs text-stone-600 dark:text-stone-300">
+                        {titleRunsheet === null ? 'Loading…' : (() => {
+                          const rows = runsheetFor(titleRunsheet, titleLines.map((l) => l.name));
+                          return rows.length === 0 ? 'No instruments on the runsheet mention this name.' : rows.map((r) => (
+                            <div key={r.id} className="mb-1.5 border-b border-stone-100 pb-1.5 last:border-b-0 dark:border-stone-800">
+                              <div className="font-medium">{r.book_page} · {r.instrument} · filed {r.file_date}</div>
+                              <div className="text-stone-500">{r.grantor} → {r.grantee}</div>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             {offerTerms.length > 0 && (
               <div className="mt-4 rounded-md border border-stone-200 p-3 dark:border-stone-800">
                 <div className="mb-2 flex items-center justify-between">

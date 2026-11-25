@@ -22,6 +22,7 @@ export default function ProjectFormModal({
   const [range, setRange] = useState(project?.range ?? '');
   const [county, setCounty] = useState(project?.county ?? '');
   const [operatorName, setOperatorName] = useState(project?.operator_name ?? '');
+  const [projectManager, setProjectManager] = useState(project?.project_manager ?? '');
   const [validDays, setValidDays] = useState(String(project?.offer_valid_days ?? 14));
   // Only meaningful when creating a new project -- becomes its first
   // ("Standard") offer terms row. Editing a project no longer touches
@@ -69,6 +70,7 @@ export default function ProjectFormModal({
           county: county.trim() || null,
           notes: notes.trim() || null,
           operator_name: operatorName.trim() || null,
+          project_manager: projectManager.trim() || null,
           offer_valid_days: parseInt(validDays, 10) > 0 ? parseInt(validDays, 10) : 14,
         },
         initialTerms
@@ -259,6 +261,18 @@ export default function ProjectFormModal({
                 className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
+              Project manager (printed on LPRs)
+            </label>
+            <input
+              value={projectManager}
+              onChange={(e) => setProjectManager(e.target.value)}
+              placeholder="MB"
+              className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+            />
           </div>
 
           <div>

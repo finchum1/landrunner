@@ -12,6 +12,12 @@ import {
 } from '../lib/owners';
 import { exportOwnersXlsx } from '../lib/exportOwners';
 import GroupModal from '../components/GroupModal';
+import LprModal from '../components/LprModal';
+import { fetchProfile } from '../lib/profile';
+import { buildLprDraft } from '../lib/lpr';
+import { saveLprDrafts } from '../lib/lprApi';
+import { fetchOrBundle, fetchRunsheet, type OrBundle } from '../lib/orApi';
+import type { OrRun } from '../lib/types';
 import { addOwnersToGroup, createGroup, fetchGroups, removeOwnerFromGroup, renameGroup } from '../lib/groups';
 import { groupName as groupNameOf, membersOf } from '../lib/groupLogic';
 import DatePickerModal from '../components/DatePickerModal';
@@ -143,6 +149,13 @@ export default function ProjectDetailPage() {
   const [letterTargets, setLetterTargets] = useState<MineralOwner[] | null>(null);
   // Related-owner groups, and the link/add dialog (null = closed).
   const [groups, setGroups] = useState<OwnerGroup[]>([]);
+  // The ownership report on file (if any) and its runsheet, loaded when first asked for.
+  const [orBundle, setOrBundle] = useState<OrBundle | null>(null);
+  const [runsheet, setRunsheet] = useState<OrRun[] | null>(null);
+  // The owner an LPR is being prepared for, and who is signing as the buyer.
+  const [lprOwner, setLprOwner] = useState<MineralOwner | null>(null);
+  const [buyerName, setBuyerName] = useState('');
+  const [notice, setNotice] = useState<string | null>(null);
   const [groupModal, setGroupModal] = useState<{ groupId: string | null; preselected: string[] } | null>(null);
 
   const [project, setProject] = useState<Project | null>(null);
@@ -186,6 +199,8 @@ export default function ProjectDetailPage() {
       setProject(projectRow);
       setOwners(ownerRows);
       setGroups(groupRows);
+      fetchOrBundle(id).then(setOrBundle).catch(() => setOrBundle(null));
+      fetchProfile().then((p) => setBuyerName(p?.full_name ?? '')).catch(() => {});
       setLatestNotes(Object.fromEntries(latestActivityRows.map((a) => [a.owner_id, a])));
       setOfferTerms(termsRows);
     } catch (err) {
@@ -414,6 +429,49 @@ export default function ProjectDetailPage() {
     }
   }
 
+  // One draft LPR per selected owner, from their ownership report lines. Owners with
+  // no lines are skipped (they can be prepared one at a time by picking lines).
+  async function handleMakeLprDrafts() {
+    if (!project || !orBundle) return;
+    const picked = owners.filter((o) => selectedIds.has(o.id));
+    const items = picked
+      .map((o) => ({ o, lines: orBundle.interests.filter((i) => i.owner_id === o.id) }))
+      .filter((x) => x.lines.length > 0);
+    if (items.length === 0) {
+      setNotice('None of the selected owners have ownership report lines linked yet. Link them on the Ownership report page first.');
+      return;
+    }
+    const skipped = picked.length - items.length;
+    if (!confirm(`Create ${items.length} LPR draft${items.length === 1 ? '' : 's'}?${skipped ? ` (${skipped} selected owner${skipped === 1 ? ' has' : 's have'} no report lines and will be skipped.)` : ''}`)) return;
+    setBulkBusy(true);
+    try {
+      await saveLprDrafts(
+        project.id,
+        items.map(({ o, lines }) => ({
+          ownerId: o.id,
+          data: buildLprDraft({
+            project,
+            report: orBundle.report,
+            tracts: orBundle.tracts,
+            notes: orBundle.notes,
+            lines,
+            owner: o,
+            buyer: buyerName,
+            terms: offerTerms.find((t) => t.id === o.offer_terms_id) ?? offerTerms[0],
+            today: todayDateString(),
+            groupName: groupNameOf(groups, o.group_id),
+          }),
+        }))
+      );
+      setNotice(`Created ${items.length} LPR draft${items.length === 1 ? '' : 's'}. Review and download them on the LPRs page.`);
+      setSelectedIds(new Set());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create the LPR drafts.');
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   function closeDrawer() {
     setSelectedOwner(null);
     setQueueIds(null);
@@ -519,6 +577,18 @@ export default function ProjectDetailPage() {
           )}
         </div>
         <div className="flex gap-2">
+          <Link
+            to={`/projects/${project.id}/lprs`}
+            className="rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+          >
+            LPRs
+          </Link>
+          <Link
+            to={`/projects/${project.id}/or`}
+            className="rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+          >
+            Ownership report
+          </Link>
           <Link
             to={`/projects/${project.id}/report`}
             className="rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
@@ -747,6 +817,13 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
+      {notice && (
+        <div className="mb-4 flex items-start justify-between gap-3 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+          <span>{notice} <Link to={`/projects/${project.id}/lprs`} className="font-medium underline">Open LPRs</Link></span>
+          <button onClick={() => setNotice(null)} className="text-emerald-700/70 hover:text-emerald-900" aria-label="Dismiss">×</button>
+        </div>
+      )}
+
       {queueNotice && (
         <div className="mb-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
           {queueNotice}
@@ -791,6 +868,16 @@ export default function ProjectDetailPage() {
           >
             Mark do-not-contact
           </button>
+          {orBundle && (
+            <button
+              disabled={bulkBusy}
+              onClick={handleMakeLprDrafts}
+              className="rounded-md border border-stone-300 bg-white px-2 py-1 text-sm hover:bg-stone-100 disabled:opacity-50 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+              title="Create an LPR draft for each selected owner that has ownership report lines"
+            >
+              Make LPR drafts…
+            </button>
+          )}
           <button
             disabled={bulkBusy || selectedCount < 2}
             onClick={() => setGroupModal({ groupId: null, preselected: owners.filter((o) => selectedIds.has(o.id) && !o.group_id).map((o) => o.id) })}
@@ -1025,6 +1112,22 @@ export default function ProjectDetailPage() {
         )}
       </div>
 
+      {lprOwner && orBundle && (
+        <LprModal
+          project={project}
+          owner={lprOwner}
+          bundle={orBundle}
+          terms={offerTerms.find((t) => t.id === lprOwner.offer_terms_id) ?? offerTerms[0]}
+          buyer={buyerName}
+          groupName={groupNameOf(groups, lprOwner.group_id)}
+          onClose={() => setLprOwner(null)}
+          onSaved={() => {
+            setLprOwner(null);
+            setNotice(`Saved the LPR for ${lprOwner.name}.`);
+          }}
+        />
+      )}
+
       {groupModal && (
         <GroupModal
           owners={owners}
@@ -1120,6 +1223,12 @@ export default function ProjectDetailPage() {
           onLeaveGroup={() => handleLeaveGroup(selectedOwner)}
           onRenameGroup={() => selectedOwner.group_id && handleRenameGroup(selectedOwner.group_id)}
           onGroupOwnersUpdated={mergeOwners}
+          hasReport={!!orBundle}
+          titleLines={orBundle ? orBundle.interests.filter((i) => i.owner_id === selectedOwner.id) : []}
+          titleNotes={orBundle?.notes ?? []}
+          titleRunsheet={runsheet}
+          onPrepareLpr={() => setLprOwner(selectedOwner)}
+          onLoadRunsheet={() => orBundle && fetchRunsheet(orBundle.report.id).then(setRunsheet).catch(() => setRunsheet([]))}
           onOutcomeLogged={(updated) => {
             if (!queueIds) return;
             // Auto-advance to the next owner still in the queue.

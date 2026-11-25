@@ -10,6 +10,8 @@ import ProjectDetailPage from './pages/ProjectDetailPage';
 import ReportPage from './pages/ReportPage';
 import BillingPage from './pages/BillingPage';
 import RemindersPage from './pages/RemindersPage';
+import OwnershipReportPage from './pages/OwnershipReportPage';
+import LprsPage from './pages/LprsPage';
 
 // The public marketing pages are lazy so the app's own bundle doesn't carry them.
 const MarketingLayout = lazy(() => import('./marketing/MarketingLayout'));
@@ -37,6 +39,8 @@ function AppShell({ session }: { session: Session }) {
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
           <Route path="/projects/:id/report" element={<ReportPage />} />
           <Route path="/projects/:id/billing" element={<BillingPage />} />
+          <Route path="/projects/:id/or" element={<OwnershipReportPage />} />
+          <Route path="/projects/:id/lprs" element={<LprsPage />} />
           <Route path="/reminders" element={<RemindersPage />} />
           <Route path="/login" element={<Navigate to="/" replace />} />
         </Routes>

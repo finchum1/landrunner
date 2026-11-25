@@ -80,3 +80,10 @@ export function todayDateString(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
+// Net mineral acres on an ownership report can be tiny (0.125 of an acre in a
+// tract), so show up to four decimals instead of rounding to two.
+export function formatNma(n: number | null | undefined): string {
+  if (n === null || n === undefined || Number.isNaN(n)) return '—';
+  return n.toLocaleString('en-US', { maximumFractionDigits: 4 });
+}
