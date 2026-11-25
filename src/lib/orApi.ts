@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { parseOrWorkbook, type ParsedOr, type RawSheet } from './orParse';
 import { linkByName } from './orLink';
+import { diffOr, lprImpact, matchLines } from './orDiff';
 import type { MineralOwner, OrInterest, OrNote, OrReport, OrRun, OrTract } from './types';
 
 export async function readOrFile(file: File): Promise<ParsedOr> {
@@ -57,21 +58,35 @@ export async function fetchRunsheet(reportId: string): Promise<OrRun[]> {
   return out;
 }
 
-async function insertChunks(table: string, rows: Record<string, unknown>[]) {
+async function insertChunks(table: string, rows: Record<string, unknown>[], wantIds = false): Promise<string[]> {
+  const ids: string[] = [];
   for (let i = 0; i < rows.length; i += 200) {
-    const { error } = await supabase.from(table).insert(rows.slice(i, i + 200));
+    const q = supabase.from(table).insert(rows.slice(i, i + 200));
+    const { data, error } = wantIds ? await q.select('id') : await q;
     if (error) throw error;
+    if (wantIds) ids.push(...((data ?? []) as { id: string }[]).map((r) => r.id));
   }
+  return ids;
 }
 
-// Replace the project's report with a freshly imported one.
+export interface SaveResult {
+  reportId: string;
+  linked: number;
+  unlinked: number;
+  flaggedLprs: string[]; // lessors whose LPR covers something the new report changed
+}
+
+// Import a report. If one is already on file this is an UPDATE: lines that are
+// still there keep their link to the person and the LPRs that cover them, the
+// LPRs that touch changed lines are flagged, and only then is the old report
+// removed (so a failed import never loses the one you had).
 export async function saveOrReport(
   projectId: string,
   parsed: ParsedOr,
   filename: string,
   owners: Pick<MineralOwner, 'id' | 'name'>[]
-): Promise<{ reportId: string; linked: number; unlinked: number }> {
-  await supabase.from('or_reports').delete().eq('project_id', projectId);
+): Promise<SaveResult> {
+  const prev = await fetchOrBundle(projectId);
   const r = parsed.report;
   const { data: rep, error } = await supabase
     .from('or_reports')
@@ -99,13 +114,24 @@ export async function saveOrReport(
   const reportId = rep.id as string;
   try {
     await insertChunks('or_tracts', parsed.tracts.map((t, i) => ({ report_id: reportId, label: t.label, description: t.description || null, gross_acres: t.grossAcres, sort_order: i })));
-    const links = linkByName(parsed.interests.map((i) => ({ name: i.name, net: i.netAcres })), owners);
-    await insertChunks(
+
+    // links: keep the old report's link for a line that's still there, then match the rest by name
+    const matches = prev ? matchLines(prev.interests, parsed.interests) : parsed.interests.map(() => null);
+    const ownerIds: (string | null)[] = matches.map((oi) => (oi !== null ? prev!.interests[oi].owner_id : null));
+    const used = new Set(ownerIds.filter(Boolean) as string[]);
+    const fresh = parsed.interests.map((i, idx) => ({ idx, name: i.name, net: ownerIds[idx] ? 0 : i.netAcres }));
+    const todo = fresh.filter((f) => f.net);
+    const byName = linkByName(todo.map((f) => ({ name: f.name, net: f.net })), owners.filter((o) => !used.has(o.id)));
+    todo.forEach((f, k) => {
+      ownerIds[f.idx] = byName[k];
+    });
+
+    const newIds = await insertChunks(
       'or_interests',
       parsed.interests.map((i, idx) => ({
         report_id: reportId,
         project_id: projectId,
-        owner_id: links[idx],
+        owner_id: ownerIds[idx],
         name: i.name,
         address: i.address || null,
         interest: i.interest,
@@ -113,7 +139,8 @@ export async function saveOrReport(
         note_refs: i.noteRefs || null,
         tract_acres: i.tractAcres,
         row_order: i.rowOrder,
-      }))
+      })),
+      true
     );
     await insertChunks('or_notes', parsed.notes.map((n, i) => ({ report_id: reportId, kind: n.kind, ref: n.ref, body: n.body, sort_order: i })));
     await insertChunks(
@@ -132,8 +159,30 @@ export async function saveOrReport(
         row_order: i,
       }))
     );
-    const linked = links.filter(Boolean).length;
-    return { reportId, linked, unlinked: parsed.interests.filter((i) => (i.netAcres ?? 0) > 0).length - linked };
+
+    // LPRs follow their lines to the new report, and are flagged if a line changed
+    const flagged: string[] = [];
+    if (prev) {
+      const diff = diffOr({ report: prev.report, tracts: prev.tracts, interests: prev.interests, notes: prev.notes, runsheet: [] }, parsed);
+      const { data: lprs } = await supabase.from('lpr_requests').select('id, lessor, data').eq('project_id', projectId);
+      const idMap = new Map<string, string>();
+      prev.interests.forEach((o) => {
+        const ni = diff.matches.get(o.id);
+        if (ni !== null && ni !== undefined && newIds[ni]) idMap.set(o.id, newIds[ni]);
+      });
+      const impact = lprImpact((lprs ?? []).map((l) => ({ id: l.id, lessor: l.lessor, interestIds: (l.data?.interestIds ?? []) as string[] })), diff);
+      const impactById = new Map(impact.map((i) => [i.id, i]));
+      for (const l of lprs ?? []) {
+        const ids = ((l.data?.interestIds ?? []) as string[]).map((x) => idMap.get(x)).filter(Boolean) as string[];
+        const hit = impactById.get(l.id);
+        const patch = { ...l.data, interestIds: ids, ...(hit ? { orChange: `Report updated ${parsed.report.orDate || 'now'} (was ${prev.report.or_date ?? '—'}): ${hit.reasons.join('; ')}`.slice(0, 700) } : {}) };
+        if (hit) flagged.push(l.lessor);
+        await supabase.from('lpr_requests').update({ data: patch }).eq('id', l.id);
+      }
+      await supabase.from('or_reports').delete().eq('id', prev.report.id);
+    }
+    const linked = ownerIds.filter(Boolean).length;
+    return { reportId, linked, unlinked: parsed.interests.filter((i, idx) => (i.netAcres ?? 0) > 0 && !ownerIds[idx]).length, flaggedLprs: flagged };
   } catch (err) {
     await supabase.from('or_reports').delete().eq('id', reportId);
     throw err;

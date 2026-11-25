@@ -59,6 +59,8 @@ export interface LprData {
   mailDate: string; // YYYY-MM-DD or ''
   // which ownership-report lines this LPR covers (so it can be reopened)
   interestIds: string[];
+  // set when a newer ownership report changed something this LPR covers
+  orChange?: string;
 }
 
 const STATES: Record<string, string> = { oklahoma: 'OK', texas: 'TX', kansas: 'KS', colorado: 'CO', 'new mexico': 'NM', arkansas: 'AR' };

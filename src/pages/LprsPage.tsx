@@ -143,6 +143,7 @@ export default function LprsPage() {
                   <td className="max-w-sm px-3 py-2">
                     <div className="font-medium text-stone-900 dark:text-stone-100">{r.lessor}</div>
                     <div className="text-xs text-stone-400">{r.data.address}</div>
+                    {r.data.orChange && <div className="mt-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" title={r.data.orChange}>Ownership report changed — check for a revised LPR</div>}
                   </td>
                   <td className="px-3 py-2 text-right">{t.net}</td>
                   <td className="px-3 py-2 text-right">{t.bonus !== null ? formatMoney(t.bonus) : '—'}</td>

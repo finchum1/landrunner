@@ -145,6 +145,12 @@ export default function LprModal({
           </p>
         </div>
 
+        {data.orChange && (
+          <div className="mx-6 mt-3 flex items-start justify-between gap-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+            <span>{data.orChange} Review the tract rows and notes below, then mark this as a revised LPR if it was already sent.</span>
+            <button type="button" onClick={() => setData((d) => ({ ...d, orChange: undefined, revised: 'Y', prevLprDate: d.prevLprDate || d.lprDate }))} className="shrink-0 text-xs font-medium underline">Mark revised</button>
+          </div>
+        )}
         <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto px-6 py-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.5fr)]">
           {/* which lines of the report this LPR covers */}
           <div className="flex min-h-0 flex-col">

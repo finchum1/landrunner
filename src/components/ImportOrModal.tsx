@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import type { MineralOwner, OrReport } from '../lib/types';
 import type { ParsedOr } from '../lib/orParse';
-import { readOrFile, saveOrReport } from '../lib/orApi';
+import { fetchOrBundle, fetchRunsheet, readOrFile, saveOrReport } from '../lib/orApi';
+import { diffOr, lprImpact, type OrDiff } from '../lib/orDiff';
+import { fetchLprs } from '../lib/lprApi';
 import { formatAcres } from '../lib/format';
 
 // Import a title company's Ownership Report workbook. Tabs are recognized by
@@ -25,6 +27,8 @@ export default function ImportOrModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
+  const [diff, setDiff] = useState<OrDiff | null>(null);
+  const [impact, setImpact] = useState<{ id: string; lessor: string; reasons: string[] }[]>([]);
 
   async function handleFile(file: File) {
     setError(null);
@@ -37,6 +41,17 @@ export default function ImportOrModal({
       }
       setParsed(p);
       setFileName(file.name);
+      setDiff(null);
+      setImpact([]);
+      if (existing) {
+        // compare with the report on file: what's new, what changed, which LPRs are touched
+        const [bundle, runs, lprs] = await Promise.all([fetchOrBundle(projectId), fetchRunsheet(existing.id), fetchLprs(projectId)]);
+        if (bundle) {
+          const d = diffOr({ ...bundle, runsheet: runs }, p);
+          setDiff(d);
+          setImpact(lprImpact(lprs.map((l) => ({ id: l.id, lessor: l.lessor, interestIds: l.data.interestIds ?? [] })), d));
+        }
+      }
     } catch {
       setError('Could not read that file. Make sure it is an .xlsx workbook.');
     }
@@ -48,7 +63,10 @@ export default function ImportOrModal({
     setError(null);
     try {
       const r = await saveOrReport(projectId, parsed, fileName, owners);
-      setResult(`Imported. ${r.linked} owner line${r.linked === 1 ? '' : 's'} linked to people already in the project; ${r.unlinked} with acres are not in the project yet.`);
+      setResult(
+        `Imported. ${r.linked} owner line${r.linked === 1 ? '' : 's'} linked to people in the project; ${r.unlinked} with acres are not in the project yet.` +
+          (r.flaggedLprs.length ? ` ${r.flaggedLprs.length} LPR${r.flaggedLprs.length === 1 ? ' was' : 's were'} flagged as touched by the update (see the LPRs page).` : '')
+      );
       onImported();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong importing this report.');
@@ -70,7 +88,7 @@ export default function ImportOrModal({
 
         {existing && !result && (
           <p className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-            This replaces the report on file{existing.or_date ? ` (dated ${existing.or_date})` : ''}. LPRs already made keep what was printed on them.
+            This updates the report on file{existing.or_date ? ` (dated ${existing.or_date})` : ''}. Owners and LPRs stay linked to lines that are still there.
           </p>
         )}
 
@@ -123,6 +141,60 @@ export default function ImportOrModal({
             <div className="text-xs text-stone-400">
               Tabs read: {parsed.sheets.map((s) => `${s.name} (${s.role})`).join(', ')}
             </div>
+            {existing && diff && (
+              <div className="rounded-md border border-stone-200 p-3 dark:border-stone-800">
+                <div className="mb-2 font-medium text-stone-800 dark:text-stone-200">What changed since the report on file{existing.or_date ? ` (${existing.or_date})` : ''}</div>
+                {diff.isEmpty ? (
+                  <p className="text-stone-500">Nothing is different from the report you already have.</p>
+                ) : (
+                  <div className="space-y-2 text-stone-600 dark:text-stone-300">
+                    {diff.facts.length > 0 && (
+                      <ul className="list-disc pl-5">
+                        {diff.facts.map((f) => (
+                          <li key={f.label}>{f.label}: {f.from} → <b>{f.to}</b></li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      <span>Net acres on report: {Math.round(diff.oldNet * 1000) / 1000} → <b>{Math.round(diff.newNet * 1000) / 1000}</b></span>
+                    </div>
+                    {[
+                      ['New owner lines with acres', diff.added.map((a) => `${a.name} (${Math.round((a.netAcres ?? 0) * 10000) / 10000} NMA)`)],
+                      ['Owner lines no longer in the report', diff.removed.map((r) => `${r.name} (${r.net_acres} NMA)`)],
+                      ['Owner lines that changed', diff.changed.map((c) => `${c.old.name} — ${c.what.join(', ')}`)],
+                      ['New or changed title notes', [...diff.notesAdded.map((n) => `Note ${n.ref} (new): ${n.body.slice(0, 160)}`), ...diff.notesChanged.map((n) => `Note ${n.ref} (changed): ${n.body.slice(0, 160)}`)]],
+                      ['Title notes removed', diff.notesRemoved.map((n) => `Note ${n.ref}`)],
+                      ['New runsheet instruments', diff.runsheetAdded.map((r) => `${r.bookPage} ${r.instrument}: ${r.grantor} → ${r.grantee}`)],
+                    ].map(([title, items]) =>
+                      (items as string[]).length > 0 ? (
+                        <details key={title as string}>
+                          <summary className="cursor-pointer font-medium">{title as string} ({(items as string[]).length})</summary>
+                          <ul className="mt-1 max-h-40 list-disc space-y-0.5 overflow-y-auto pl-5 text-xs">
+                            {(items as string[]).map((t, i) => (
+                              <li key={i}>{t}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      ) : null
+                    )}
+                    {(diff.zeroAdded > 0 || diff.zeroRemoved > 0) && (
+                      <p className="text-xs text-stone-400">Chain-of-title lines with no acres: {diff.zeroAdded} added, {diff.zeroRemoved} removed.</p>
+                    )}
+                  </div>
+                )}
+                {impact.length > 0 && (
+                  <div className="mt-3 rounded-md bg-amber-50 p-2 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                    <div className="mb-1 font-medium">{impact.length} LPR{impact.length === 1 ? '' : 's'} cover lines that changed — they may need a revised LPR</div>
+                    <ul className="list-disc space-y-0.5 pl-5 text-xs">
+                      {impact.map((i) => (
+                        <li key={i.id}><b>{i.lessor}</b>: {i.reasons.join('; ')}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
             {parsed.warnings.length > 0 && (
               <div className="rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
                 <div className="mb-1 font-medium">Check these</div>
